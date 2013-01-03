@@ -8,6 +8,7 @@ import paramiko
 import spur
 import starboard
 
+
 local_shell = spur.LocalShell()
 
 
@@ -83,16 +84,15 @@ class QemuMachine(object):
         root_shell.run(["touch", tmp_file])
         root_shell.spawn(["reboot"])
         for i in range(0, 20):
-            has_rebooted_command = [
-                "bash", "-c",
-                "[ -f {0} ] && echo 1 || echo 0".format(tmp_file)
-            ]
             try:
                 # TODO: automatic reconnection of shell
-                result = self.root_shell().run(has_rebooted_command)
-                if result.output.strip() == "0":
+                result = self.root_shell().run(
+                    ["test", "-f", tmp_file],
+                    allow_error=True
+                )
+                if result.return_code == 1:
                     return
-            except (socket.error, paramiko.SSHException):
+            except (socket.error, paramiko.SSHException, EOFError):
                 pass
             time.sleep(1)
         raise RuntimeError("Failed to restart VM")

@@ -3,6 +3,10 @@ from nose.tools import istest, assert_equals
 import peachtree
 
 
+import logging
+logging.getLogger("paramiko").setLevel(logging.WARNING)
+
+
 @istest
 def can_run_commands_on_vm():
     with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
@@ -23,3 +27,13 @@ def can_ensure_that_ports_are_available():
         shell = ssh_config.shell()
         result = shell.run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
+
+
+@istest
+def can_restart_vm():
+    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+        vm.shell().run(["touch", "/tmp/hello"])
+        vm.restart()
+        
+        result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
+        assert_equals(1, result.return_code)
