@@ -29,7 +29,8 @@ class QemuMachine(object):
         self._public_ports = public_ports
     
     def __enter__(self):
-        self.start()
+        if not self._running:
+            self.start()
         return self
         
     def __exit__(self, *args):
