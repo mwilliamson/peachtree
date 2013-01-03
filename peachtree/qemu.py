@@ -13,7 +13,8 @@ local_shell = spur.LocalShell()
 
 class QemuProvider(object):
     def create(self, machine_name, public_ports):
-        image_path = os.path.expanduser("~/.local/share/qemu-provider/{0}.qcow2".format(machine_name))
+        xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        image_path = os.path.join(xdg_data_home, "peachtree/qemu/{0}.qcow2".format(machine_name))
         return QemuMachine(image_path, [_GUEST_SSH_PORT] + public_ports)
 
 
