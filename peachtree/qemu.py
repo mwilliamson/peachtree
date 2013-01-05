@@ -40,8 +40,10 @@ class QemuProvider(object):
             "-device", "virtio-net-pci,netdev=guest0",
             "-uuid", vm_id,
         ])
+        machine = QemuMachine(vm_id, forwarded_ports)
+        self._wait_for_ssh(process, machine)
         
-        return QemuMachine(vm_id, forwarded_ports)
+        return machine
         
     def _generate_forwarded_ports(self, public_ports):
         forwarded_ports = {}
@@ -51,6 +53,19 @@ class QemuProvider(object):
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
+    
+    def _wait_for_ssh(self, process, machine):
+        for i in range(0, 60):
+            try:
+                if not process.is_running():
+                    raise process.wait_for_result().to_error()
+                machine.root_shell().run(["true"])
+                return
+            except (socket.error, paramiko.SSHException) as e:
+                last_exception = sys.exc_info()
+                time.sleep(1)
+        
+        raise last_exception[0], last_exception[1], last_exception[2]
         
     def find_running_vm(self, vm_id):
         no_such_vm_error = RuntimeError(
@@ -96,24 +111,10 @@ class QemuMachine(object):
         self._forwarded_ports = forwarded_ports
     
     def __enter__(self):
-        self.wait_for_ssh()
         return self
         
     def __exit__(self, *args):
         self.destroy()
-    
-    def wait_for_ssh(self):
-        for i in range(0, 60):
-            try:
-                if not self.is_running():
-                    raise process.wait_for_result().to_error()
-                self.root_shell().run(["true"])
-                return
-            except (socket.error, paramiko.SSHException) as e:
-                last_exception = sys.exc_info()
-                time.sleep(1)
-        
-        raise last_exception[0], last_exception[1], last_exception[2]
     
     def is_running(self):
         return self._process_id() is not None
