@@ -19,7 +19,7 @@ class QemuProvider(object):
         image_path = self._image_path(machine_name)
         vm_id = str(uuid.uuid4())
         
-        public_ports = [_GUEST_SSH_PORT] + public_ports
+        public_ports = set([_GUEST_SSH_PORT] + public_ports)
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         status = {"forwardedPorts": forwarded_ports}
         status_path = self._status_path(vm_id)
