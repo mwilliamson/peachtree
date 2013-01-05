@@ -104,7 +104,20 @@ def list_of_machines_include_ids():
     with provider_with_temp_data_dir() as provider:
         with provider.start(_IMAGE_NAME) as original_vm:
             running_machines = provider.list_running_machines()
-            assert_that(running_machines, contains(has_property("identifier", original_vm.identifier)))
+            assert_that(
+                running_machines,
+                contains(has_property("identifier", original_vm.identifier))
+            )
+            
+@istest
+def list_of_machines_include_image_name():
+    with provider_with_temp_data_dir() as provider:
+        with provider.start(_IMAGE_NAME) as original_vm:
+            running_machines = provider.list_running_machines()
+            assert_that(
+                running_machines,
+                contains(has_property("image_name", _IMAGE_NAME))
+            )
             
 @istest
 def machines_that_have_stopped_are_not_in_list_of_running_machines():

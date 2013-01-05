@@ -39,7 +39,7 @@ class ListCommand(object):
     def execute(self, args):
         machines = peachtree.list_running_machines()
         for machine in machines:
-            print machine.identifier
+            print machine.identifier, machine.image_name
     
         
 _commands = {

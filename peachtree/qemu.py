@@ -5,6 +5,7 @@ import socket
 import sys
 import json
 import errno
+import collections
 
 import paramiko
 import spur
@@ -24,7 +25,7 @@ class QemuProvider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._write_status(identifier, forwarded_ports)
+        self._write_status(identifier, image_name, forwarded_ports)
         
         process = self._start_kvm_process(image_path, forwarded_ports, identifier)
         
@@ -42,8 +43,11 @@ class QemuProvider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
     
-    def _write_status(self, identifier, forwarded_ports):
-        status = {"forwardedPorts": forwarded_ports}
+    def _write_status(self, identifier, image_name, forwarded_ports):
+        status = {
+            "imageName": image_name,
+            "forwardedPorts": forwarded_ports,
+        }
         status_path = self._status_path(identifier)
         
         if not os.path.exists(os.path.dirname(status_path)):
@@ -126,10 +130,20 @@ class QemuProvider(object):
             return []
         self._clean_status_dir()
         identifiers = os.listdir(self._status_dir())
-        machines = map(self._find_machine, identifiers)
-        running_machines = filter(lambda machine: machine.is_running(), machines)
-        return [MachineStatus(machine.identifier) for machine in running_machines]
-        
+        statuses = []
+        for identifier in identifiers:
+            status_file_path = os.path.join(self._status_dir(), identifier)
+            try:
+                with open(status_file_path) as status_file:
+                    status_json = json.load(status_file)
+                status = MachineStatus(identifier, status_json["imageName"])
+                statuses.append(status)
+            except IOError as error:
+                # ENOENT: Machine has been shut down in the interim, so ignore
+                if error.errno != errno.ENOENT:
+                    raise
+        return statuses
+    
     def _clean_status_dir(self):
         identifiers = os.listdir(self._status_dir())
         for identifier in identifiers:
@@ -141,9 +155,11 @@ class QemuProvider(object):
                     if error.errno != errno.ENOENT:
                         raise
 
-class MachineStatus(object):
-    def __init__(self, identifier):
-        self.identifier = identifier
+
+MachineStatus = collections.namedtuple(
+    "MachineStatus",
+    ["identifier", "image_name"]
+)
 
 
 class QemuMachine(object):
