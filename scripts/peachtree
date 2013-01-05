@@ -24,8 +24,8 @@ class RunCommand(object):
         subparser.add_argument('image')
     
     def execute(self, args):
-        vm = peachtree.start_kvm(args.image)
-        ssh_config = vm.ssh_config()
+        machine = peachtree.start_kvm(args.image)
+        ssh_config = machine.ssh_config()
         print "HostName", ssh_config.hostname
         print "User", ssh_config.user
         print "Port", ssh_config.port

@@ -4,12 +4,12 @@ from . import qemu
 provider = qemu.QemuProvider()
 
 
-def start_kvm(machine_name, public_ports=None):
-    return provider.start(machine_name, public_ports)
+def start_kvm(image_name, public_ports=None):
+    return provider.start(image_name, public_ports)
 
 
-def find_running_vm(vm_id):
-    return provider.find_running_vm(vm_id)
+def find_running_machine(identifier):
+    return provider.find_running_machine(identifier)
 
 
 def list_running_machines():

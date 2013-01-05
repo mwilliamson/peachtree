@@ -18,17 +18,17 @@ class QemuProvider(object):
     def __init__(self, data_dir=None):
         self._data_dir = data_dir or self._default_data_dir()
     
-    def start(self, machine_name, public_ports=None):
-        image_path = self.image_path(machine_name)
-        vm_id = str(uuid.uuid4())
+    def start(self, image_name, public_ports=None):
+        image_path = self.image_path(image_name)
+        identifier = str(uuid.uuid4())
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._write_status(vm_id, forwarded_ports)
+        self._write_status(identifier, forwarded_ports)
         
-        process = self._start_kvm_process(image_path, forwarded_ports, vm_id)
+        process = self._start_kvm_process(image_path, forwarded_ports, identifier)
         
-        machine = QemuMachine(vm_id, forwarded_ports)
+        machine = QemuMachine(identifier, forwarded_ports)
         self._wait_for_ssh(process, machine)
         
         return machine
@@ -42,9 +42,9 @@ class QemuProvider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
     
-    def _write_status(self, vm_id, forwarded_ports):
+    def _write_status(self, identifier, forwarded_ports):
         status = {"forwardedPorts": forwarded_ports}
-        status_path = self._status_path(vm_id)
+        status_path = self._status_path(identifier)
         
         if not os.path.exists(os.path.dirname(status_path)):
             os.makedirs(os.path.dirname(status_path))
@@ -52,7 +52,7 @@ class QemuProvider(object):
         with open(status_path, "w") as status_file:
             json.dump(status, status_file)
     
-    def _start_kvm_process(self, image_path, forwarded_ports, vm_id):
+    def _start_kvm_process(self, image_path, forwarded_ports, identifier):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
@@ -65,7 +65,7 @@ class QemuProvider(object):
             "-drive", "file={0},if=virtio".format(image_path),
             "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
             "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", vm_id,
+            "-uuid", identifier,
         ])
     
     def _wait_for_ssh(self, process, machine):
@@ -81,19 +81,19 @@ class QemuProvider(object):
         
         raise last_exception[0], last_exception[1], last_exception[2]
         
-    def find_running_vm(self, identifier):
-        vm = self._find_vm(identifier)
-        if not vm.is_running():
-            raise self._no_such_vm_error(identifier)
-        return vm
+    def find_running_machine(self, identifier):
+        machine = self._find_machine(identifier)
+        if not machine.is_running():
+            raise self._no_such_machine_error(identifier)
+        return machine
         
-    def _find_vm(self, identifier):
+    def _find_machine(self, identifier):
         try:
             with open(self._status_path(identifier), "r") as status_file:
                 status = json.load(status_file)
         except IOError as error:
             if error.errno == errno.ENOENT:
-                raise self._no_such_vm_error(identifier)
+                raise self._no_such_machine_error(identifier)
             else:
                 raise
             
@@ -104,15 +104,15 @@ class QemuProvider(object):
         )
         return QemuMachine(identifier, forwarded_ports=forwarded_ports)
     
-    def _no_such_vm_error(self, identifier):
+    def _no_such_machine_error(self, identifier):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
         return RuntimeError(message)
     
-    def image_path(self, machine_name):
-        return os.path.join(self._data_dir, "images/{0}.qcow2".format(machine_name))
+    def image_path(self, image_name):
+        return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
     
-    def _status_path(self, vm_id):
-        return os.path.join(self._status_dir(), vm_id)
+    def _status_path(self, identifier):
+        return os.path.join(self._status_dir(), identifier)
         
     def _status_dir(self):
         return os.path.join(self._data_dir, "status")
@@ -122,10 +122,12 @@ class QemuProvider(object):
         return os.path.join(xdg_data_home, "peachtree/qemu")
     
     def list_running_machines(self):
+        if not os.path.exists(self._status_dir()):
+            return []
         identifiers = os.listdir(self._status_dir())
-        machines = map(self._find_vm, identifiers)
+        machines = map(self._find_machine, identifiers)
         running_machines = filter(lambda machine: machine.is_running(), machines)
-        return [MachineStatus(machine.vm_id) for machine in running_machines]
+        return [MachineStatus(machine.identifier) for machine in running_machines]
         
 
 class MachineStatus(object):
@@ -138,8 +140,8 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, vm_id, forwarded_ports):
-        self.vm_id = vm_id
+    def __init__(self, identifier, forwarded_ports):
+        self.identifier = identifier
         self._forwarded_ports = forwarded_ports
     
     def __enter__(self):
@@ -157,7 +159,7 @@ class QemuMachine(object):
             local_shell.run(["kill", str(process_id)])
         
     def _process_id(self):
-        result = local_shell.run(["pgrep", "-f", self.vm_id], allow_error=True)
+        result = local_shell.run(["pgrep", "-f", self.identifier], allow_error=True)
         # Return code of 1 indicates no processes matched
         if result.return_code not in [0, 1]:
             raise result.to_error()
