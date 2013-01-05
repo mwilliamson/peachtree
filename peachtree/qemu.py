@@ -13,17 +13,41 @@ local_shell = spur.LocalShell()
 
 
 class QemuProvider(object):
-    def create(self, machine_name, public_ports):
+    def start(self, machine_name, public_ports):
         image_path = self._image_path(machine_name)
         vm_id = str(uuid.uuid4())
         
-        return QemuMachine(vm_id, image_path, [_GUEST_SSH_PORT] + public_ports)
+        public_ports = [_GUEST_SSH_PORT] + public_ports
+        forwarded_ports = self._generate_forwarded_ports(public_ports)
+        
+        kvm_forward_ports = []
+        for guest_port, host_port in forwarded_ports.iteritems():
+            kvm_forward_ports.append("hostfwd=tcp::{0}-:{1}".format(host_port, guest_port))
+        process = local_shell.spawn([
+            "kvm", "-machine", "accel=kvm", "-snapshot",
+            "-nographic", "-serial", "none",
+            "-m", "512",
+            "-drive", "file={0},if=virtio".format(image_path),
+            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
+            "-device", "virtio-net-pci,netdev=guest0",
+            "-uuid", vm_id,
+        ])
+        
+        return QemuMachine(vm_id, forwarded_ports)
+        
+    def _generate_forwarded_ports(self, public_ports):
+        forwarded_ports = {}
+        for port in public_ports:
+            forwarded_ports[port] = self._allocate_host_port(port)
+        return forwarded_ports
+        
+    def _allocate_host_port(self, guest_port):
+        return starboard.find_local_free_tcp_port()
         
     def find_running_vm(self, vm_id):
         return QemuMachine(
             vm_id,
-            image_path=None,
-            public_ports=None
+            forwarded_ports=None
         )
     
     def _image_path(self, machine_name):
@@ -40,41 +64,21 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, vm_id, image_path, public_ports):
-        self._image_path = image_path
-        self._public_ports = public_ports
+    def __init__(self, vm_id, forwarded_ports):
         self.vm_id = vm_id
+        self._forwarded_ports = forwarded_ports
     
     def __enter__(self):
-        if not self.is_running():
-            self.start()
+        self.wait_for_ssh()
         return self
         
     def __exit__(self, *args):
         self.destroy()
     
-    def start(self):
-        if self.is_running():
-            raise RuntimeError("VM is already running")
-        
-        self._generate_forwarded_ports()
-        
-        kvm_forward_ports = []
-        for guest_port, host_port in self._forwarded_ports.iteritems():
-            kvm_forward_ports.append("hostfwd=tcp::{0}-:{1}".format(host_port, guest_port))
-        process = local_shell.spawn([
-            "kvm", "-machine", "accel=kvm", "-snapshot",
-            "-nographic", "-serial", "none",
-            "-m", "512",
-            "-drive", "file={0},if=virtio".format(self._image_path),
-            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
-            "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", self.vm_id,
-        ])
-        
+    def wait_for_ssh(self):
         for i in range(0, 60):
             try:
-                if not process.is_running():
+                if not self.is_running():
                     raise process.wait_for_result().to_error()
                 self.root_shell().run(["true"])
                 return
@@ -143,14 +147,6 @@ class QemuMachine(object):
         
     def public_port(self, guest_port):
         return self._forwarded_ports[guest_port]
-        
-    def _generate_forwarded_ports(self):
-        self._forwarded_ports = {}
-        for port in self._public_ports:
-            self._forwarded_ports[port] = self._allocate_host_port(port)
-        
-    def _allocate_host_port(self, guest_port):
-        return starboard.find_local_free_tcp_port()
 
 
 class SshConfig(object):
