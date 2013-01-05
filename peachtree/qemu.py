@@ -81,15 +81,19 @@ class QemuProvider(object):
         
         raise last_exception[0], last_exception[1], last_exception[2]
         
-    def find_running_vm(self, vm_id):
-        no_such_vm_error = RuntimeError(
-            'Could not find running VM with id "{0}"'.format(vm_id))
+    def find_running_vm(self, identifier):
+        vm = self._find_vm(identifier)
+        if not vm.is_running():
+            raise self._no_such_vm_error(identifier)
+        return vm
+        
+    def _find_vm(self, identifier):
         try:
-            with open(self._status_path(vm_id), "r") as status_file:
+            with open(self._status_path(identifier), "r") as status_file:
                 status = json.load(status_file)
         except IOError as error:
             if error.errno == errno.ENOENT:
-                raise no_such_vm_error
+                raise self._no_such_vm_error(identifier)
             else:
                 raise
             
@@ -98,10 +102,11 @@ class QemuProvider(object):
             for guest_port, host_port
             in status["forwardedPorts"].iteritems()
         )
-        vm = QemuMachine(vm_id, forwarded_ports=forwarded_ports)
-        if not vm.is_running():
-            raise no_such_vm_error
-        return vm
+        return QemuMachine(identifier, forwarded_ports=forwarded_ports)
+    
+    def _no_such_vm_error(self, identifier):
+        message = 'Could not find running VM with id "{0}"'.format(identifier)
+        return RuntimeError(message)
     
     def image_path(self, machine_name):
         return os.path.join(self._data_dir, "images/{0}.qcow2".format(machine_name))
@@ -118,7 +123,9 @@ class QemuProvider(object):
     
     def list_running_machines(self):
         identifiers = os.listdir(self._status_dir())
-        return map(MachineStatus, identifiers)
+        machines = map(self._find_vm, identifiers)
+        running_machines = filter(lambda machine: machine.is_running(), machines)
+        return [MachineStatus(machine.vm_id) for machine in running_machines]
         
 
 class MachineStatus(object):

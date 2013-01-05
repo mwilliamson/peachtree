@@ -2,7 +2,7 @@ import os
 import contextlib
 
 from nose.tools import istest, assert_equals
-from hamcrest import assert_that, contains, has_property
+from hamcrest import assert_that, contains, has_property, is_not
 import spur
 
 import peachtree
@@ -105,6 +105,15 @@ def list_of_machines_include_ids():
         with provider.start(_IMAGE_NAME) as original_vm:
             running_machines = provider.list_running_machines()
             assert_that(running_machines, contains(has_property("identifier", original_vm.vm_id)))
+            
+@istest
+def machines_that_have_stopped_are_not_in_list_of_running_machines():
+    with provider_with_temp_data_dir() as provider:
+        with provider.start(_IMAGE_NAME) as original_vm:
+            pass
+        running_machines = provider.list_running_machines()
+        assert_equals([], running_machines)
+
 
 
 @contextlib.contextmanager
