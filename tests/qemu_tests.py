@@ -37,3 +37,22 @@ def can_restart_vm():
         
         result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
         assert_equals(1, result.return_code)
+        
+@istest
+def can_detect_if_vm_is_running():
+    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+        assert vm.is_running()
+        
+    assert not vm.is_running()
+        
+        
+@istest
+def can_find_running_vm_using_identifier_and_then_stop_vm():
+    with peachtree.start_kvm("ubuntu-precise-amd64") as original_vm:
+        vm_id = original_vm.vm_id
+        
+        vm = peachtree.find_running_vm(vm_id)
+        assert vm.is_running()
+        vm.destroy()
+        assert not vm.is_running()
+

@@ -14,9 +14,25 @@ local_shell = spur.LocalShell()
 
 class QemuProvider(object):
     def create(self, machine_name, public_ports):
+        image_path = self._image_path(machine_name)
+        vm_id = str(uuid.uuid4())
+        
+        return QemuMachine(vm_id, image_path, [_GUEST_SSH_PORT] + public_ports)
+        
+    def find_running_vm(self, vm_id):
+        return QemuMachine(
+            vm_id,
+            image_path=None,
+            public_ports=None
+        )
+    
+    def _image_path(self, machine_name):
+        return os.path.join(self._data_dir(), "images/{0}.qcow2".format(machine_name))
+        
+    def _data_dir(self):
         xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-        image_path = os.path.join(xdg_data_home, "peachtree/qemu/images/{0}.qcow2".format(machine_name))
-        return QemuMachine(image_path, [_GUEST_SSH_PORT] + public_ports)
+        return os.path.join(xdg_data_home, "peachtree/qemu")
+        
 
 
 class QemuMachine(object):
@@ -24,14 +40,13 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, image_path, public_ports):
+    def __init__(self, vm_id, image_path, public_ports):
         self._image_path = image_path
-        self._uuid = str(uuid.uuid4())
-        self._running = False
         self._public_ports = public_ports
+        self.vm_id = vm_id
     
     def __enter__(self):
-        if not self._running:
+        if not self.is_running():
             self.start()
         return self
         
@@ -39,7 +54,7 @@ class QemuMachine(object):
         self.destroy()
     
     def start(self):
-        if self._running:
+        if self.is_running():
             raise RuntimeError("VM is already running")
         
         self._generate_forwarded_ports()
@@ -54,9 +69,8 @@ class QemuMachine(object):
             "-drive", "file={0},if=virtio".format(self._image_path),
             "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
             "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", self._uuid
+            "-uuid", self.vm_id,
         ])
-        self._running = True
         
         for i in range(0, 60):
             try:
@@ -70,13 +84,26 @@ class QemuMachine(object):
         
         raise last_exception[0], last_exception[1], last_exception[2]
     
+    def is_running(self):
+        return self._process_id() is not None
+    
     def destroy(self):
-        kill_command = ["pkill", "-f", self._uuid]
-        result = local_shell.run(kill_command, allow_error=True)
-        # Return code of 1 indicates no processes killed
+        process_id = self._process_id()
+        if process_id is not None:
+            local_shell.run(["kill", str(process_id)])
+        
+    def _process_id(self):
+        result = local_shell.run(["pgrep", "-f", self.vm_id], allow_error=True)
+        # Return code of 1 indicates no processes matched
         if result.return_code not in [0, 1]:
             raise result.to_error()
-        self._running = False
+        process_ids = [int(line) for line in result.output.split("\n") if line]
+        if len(process_ids) > 1:
+            raise RuntimeError("Multiple processes found for VM")
+        if process_ids:
+            return process_ids[0]
+        else:
+            return None
     
     def restart(self):
         tmp_file = os.path.join("/tmp/", str(uuid.uuid4()))
