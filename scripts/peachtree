@@ -25,7 +25,9 @@ class RunCommand(object):
     
     def execute(self, args):
         machine = peachtree.start_kvm(args.image)
+        print "identifier", machine.identifier
         ssh_config = machine.ssh_config()
+        print "== SSH config =="
         print "HostName", ssh_config.hostname
         print "User", ssh_config.user
         print "Port", ssh_config.port
@@ -40,11 +42,21 @@ class ListCommand(object):
         machines = peachtree.list_running_machines()
         for machine in machines:
             print machine.identifier, machine.image_name
+            
+            
+class StopCommand(object):
+    def create_parser(self, subparser):
+        subparser.add_argument('identifier')
+    
+    def execute(self, args):
+        machine = peachtree.find_running_machine(args.identifier)
+        machine.destroy()
     
         
 _commands = {
     "run": RunCommand,
     "list-running": ListCommand,
+    "stop": StopCommand,
 }
 
 if __name__ == "__main__":
