@@ -61,7 +61,7 @@ class QemuProvider(object):
                     raise process.wait_for_result().to_error()
                 machine.root_shell().run(["true"])
                 return
-            except (socket.error, paramiko.SSHException) as e:
+            except (socket.error, paramiko.SSHException):
                 last_exception = sys.exc_info()
                 time.sleep(1)
         
