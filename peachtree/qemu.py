@@ -3,6 +3,8 @@ import uuid
 import time
 import socket
 import sys
+import json
+import errno
 
 import paramiko
 import spur
@@ -19,6 +21,12 @@ class QemuProvider(object):
         
         public_ports = [_GUEST_SSH_PORT] + public_ports
         forwarded_ports = self._generate_forwarded_ports(public_ports)
+        status = {"forwardedPorts": forwarded_ports}
+        status_path = self._status_path(vm_id)
+        if not os.path.exists(os.path.dirname(status_path)):
+            os.makedirs(os.path.dirname(status_path))
+        with open(status_path, "w") as status_file:
+            json.dump(status, status_file)
         
         kvm_forward_ports = []
         for guest_port, host_port in forwarded_ports.iteritems():
@@ -45,14 +53,33 @@ class QemuProvider(object):
         return starboard.find_local_free_tcp_port()
         
     def find_running_vm(self, vm_id):
-        return QemuMachine(
-            vm_id,
-            forwarded_ports=None
+        no_such_vm_error = RuntimeError(
+            'Could not find running VM with id "{0}"'.format(vm_id))
+        try:
+            with open(self._status_path(vm_id), "r") as status_file:
+                status = json.load(status_file)
+        except IOError as error:
+            if error.errno == errno.ENOENT:
+                raise no_such_vm_error
+            else:
+                raise
+            
+        forwarded_ports = dict(
+            (int(guest_port), host_port)
+            for guest_port, host_port
+            in status["forwardedPorts"].iteritems()
         )
+        vm = QemuMachine(vm_id, forwarded_ports=forwarded_ports)
+        if not vm.is_running():
+            raise no_such_vm_error
+        return vm
     
     def _image_path(self, machine_name):
         return os.path.join(self._data_dir(), "images/{0}.qcow2".format(machine_name))
-        
+    
+    def _status_path(self, vm_id):
+        return os.path.join(self._data_dir(), "status", vm_id)
+    
     def _data_dir(self):
         xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
         return os.path.join(xdg_data_home, "peachtree/qemu")

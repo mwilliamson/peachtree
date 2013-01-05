@@ -1,4 +1,5 @@
 from nose.tools import istest, assert_equals
+import spur
 
 import peachtree
 
@@ -55,4 +56,32 @@ def can_find_running_vm_using_identifier_and_then_stop_vm():
         assert vm.is_running()
         vm.destroy()
         assert not vm.is_running()
+        
+@istest
+def error_is_raised_if_vm_id_is_invalid():
+    try:
+        peachtree.find_running_vm("wonderful")
+        raise AssertionError("Expected error")
+    except RuntimeError as error:
+        assert_equals('Could not find running VM with id "wonderful"', error.message)
+        
+@istest
+def error_is_raised_if_vm_with_id_is_not_running():
+    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+        # Yes, this is a bit evil
+        spur.LocalShell().run(["pkill", "-f", vm.vm_id])
+        
+        try:
+            peachtree.find_running_vm(vm.vm_id)
+            raise AssertionError("Expected error")
+        except RuntimeError as error:
+            assert error.message.startswith('Could not find running VM with id')
 
+@istest
+def can_run_commands_against_vm_found_using_identifier():
+    with peachtree.start_kvm("ubuntu-precise-amd64") as original_vm:
+        vm_id = original_vm.vm_id
+        
+        vm = peachtree.find_running_vm(vm_id)
+        result = vm.shell().run(["echo", "Hello there"])
+        assert_equals("Hello there\n", result.output)
