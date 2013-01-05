@@ -30,10 +30,21 @@ class RunCommand(object):
         print "User", ssh_config.user
         print "Port", ssh_config.port
         print "Password", ssh_config.password
-        
+
+
+class ListCommand(object):
+    def create_parser(self, subparser):
+        pass
+    
+    def execute(self, args):
+        machines = peachtree.list_running_machines()
+        for machine in machines:
+            print machine.identifier
+    
         
 _commands = {
-    "run": RunCommand
+    "run": RunCommand,
+    "list-running": ListCommand,
 }
 
 if __name__ == "__main__":
