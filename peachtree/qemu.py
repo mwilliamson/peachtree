@@ -186,7 +186,8 @@ class QemuMachine(object):
             local_shell.run(["kill", str(process_id)])
         
     def _process_id(self):
-        result = local_shell.run(["pgrep", "-f", self.identifier], allow_error=True)
+        pgrep_regex = "^kvm .*{0}".format(self.identifier)
+        result = local_shell.run(["pgrep", "-f", pgrep_regex], allow_error=True)
         # Return code of 1 indicates no processes matched
         if result.return_code not in [0, 1]:
             raise result.to_error()
