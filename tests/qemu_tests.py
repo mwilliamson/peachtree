@@ -1,12 +1,20 @@
+import os
+import contextlib
+
 from nose.tools import istest, assert_equals
+from hamcrest import assert_that, contains, has_property
 import spur
 
 import peachtree
+import peachtree.qemu
 
+from .tempdir import create_temporary_dir
 
 import logging
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
+
+_IMAGE_NAME="ubuntu-precise-amd64"
 
 @istest
 def can_run_commands_on_vm():
@@ -85,3 +93,26 @@ def can_run_commands_against_vm_found_using_identifier():
         vm = peachtree.find_running_vm(vm_id)
         result = vm.shell().run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
+
+@istest
+def list_of_machines_is_empty_if_none_are_running():
+    with provider_with_temp_data_dir() as provider:
+        assert_equals([], provider.list_running_machines())
+
+@istest
+def list_of_machines_include_ids():
+    with provider_with_temp_data_dir() as provider:
+        with provider.start(_IMAGE_NAME) as original_vm:
+            running_machines = provider.list_running_machines()
+            assert_that(running_machines, contains(has_property("identifier", original_vm.vm_id)))
+
+
+@contextlib.contextmanager
+def provider_with_temp_data_dir():
+    with create_temporary_dir() as data_dir:
+        provider = peachtree.qemu.QemuProvider(data_dir=data_dir)
+        image_path = peachtree.qemu.QemuProvider().image_path(_IMAGE_NAME)
+        temp_image_path = provider.image_path(_IMAGE_NAME)
+        os.makedirs(os.path.dirname(temp_image_path))
+        os.symlink(image_path, temp_image_path)
+        yield provider

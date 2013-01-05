@@ -15,10 +15,13 @@ local_shell = spur.LocalShell()
 
 
 class QemuProvider(object):
-    def start(self, machine_name, public_ports):
-        image_path = self._image_path(machine_name)
+    def __init__(self, data_dir=None):
+        self._data_dir = data_dir or self._default_data_dir()
+    
+    def start(self, machine_name, public_ports=None):
+        image_path = self.image_path(machine_name)
         vm_id = str(uuid.uuid4())
-        public_ports = set([_GUEST_SSH_PORT] + public_ports)
+        public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
         self._write_status(vm_id, forwarded_ports)
@@ -100,16 +103,27 @@ class QemuProvider(object):
             raise no_such_vm_error
         return vm
     
-    def _image_path(self, machine_name):
-        return os.path.join(self._data_dir(), "images/{0}.qcow2".format(machine_name))
+    def image_path(self, machine_name):
+        return os.path.join(self._data_dir, "images/{0}.qcow2".format(machine_name))
     
     def _status_path(self, vm_id):
-        return os.path.join(self._data_dir(), "status", vm_id)
+        return os.path.join(self._status_dir(), vm_id)
+        
+    def _status_dir(self):
+        return os.path.join(self._data_dir, "status")
     
-    def _data_dir(self):
+    def _default_data_dir(self):
         xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
         return os.path.join(xdg_data_home, "peachtree/qemu")
+    
+    def list_running_machines(self):
+        identifiers = os.listdir(self._status_dir())
+        return map(MachineStatus, identifiers)
         
+
+class MachineStatus(object):
+    def __init__(self, identifier):
+        self.identifier = identifier
 
 
 class QemuMachine(object):

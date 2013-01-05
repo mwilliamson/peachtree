@@ -3,7 +3,7 @@ from . import qemu
 
 def start_kvm(machine_name, public_ports=None):
     provider = qemu.QemuProvider()
-    return provider.start(machine_name, public_ports or [])
+    return provider.start(machine_name, public_ports)
 
 
 def find_running_vm(vm_id):
