@@ -124,11 +124,22 @@ class QemuProvider(object):
     def list_running_machines(self):
         if not os.path.exists(self._status_dir()):
             return []
+        self._clean_status_dir()
         identifiers = os.listdir(self._status_dir())
         machines = map(self._find_machine, identifiers)
         running_machines = filter(lambda machine: machine.is_running(), machines)
         return [MachineStatus(machine.identifier) for machine in running_machines]
         
+    def _clean_status_dir(self):
+        identifiers = os.listdir(self._status_dir())
+        for identifier in identifiers:
+            machine = self._find_machine(identifier)
+            if not machine.is_running():
+                try:
+                    os.remove(os.path.join(self._status_dir(), identifier))
+                except IOError as error:
+                    if error.errno != errno.ENOENT:
+                        raise
 
 class MachineStatus(object):
     def __init__(self, identifier):
