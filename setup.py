@@ -8,11 +8,12 @@ def read(fname):
 
 setup(
     name='peachtree',
-    version='0.1.1',
+    version='0.1.2',
     description='Library for starting and interacting with qemu/kvm',
     long_description=read("README"),
     author='Michael Williamson',
     url='http://github.com/mwilliamson/peachtree',
+    scripts=["scripts/peachtree"],
     packages=['peachtree'],
     install_requires=["spur>=0.1.5", "starboard>=0.1.0"],
 )

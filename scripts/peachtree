@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import argparse
+
+import peachtree
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    
+    for command_name, command_builder in _commands.iteritems():
+        command = command_builder()
+        subparser = subparsers.add_parser(command_name)
+        subparser.set_defaults(func=command.execute)
+        command.create_parser(subparser)
+    
+    args = parser.parse_args()
+    args.func(args)
+
+
+class RunCommand(object):
+    def create_parser(self, subparser):
+        subparser.add_argument('image')
+    
+    def execute(self, args):
+        vm = peachtree.start_kvm(args.image)
+        ssh_config = vm.ssh_config()
+        print "HostName", ssh_config.hostname
+        print "User", ssh_config.user
+        print "Port", ssh_config.port
+        print "Password", ssh_config.password
+        
+        
+_commands = {
+    "run": RunCommand
+}
+
+if __name__ == "__main__":
+    main()
