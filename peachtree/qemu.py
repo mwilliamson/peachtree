@@ -18,28 +18,13 @@ class QemuProvider(object):
     def start(self, machine_name, public_ports):
         image_path = self._image_path(machine_name)
         vm_id = str(uuid.uuid4())
-        
         public_ports = set([_GUEST_SSH_PORT] + public_ports)
         forwarded_ports = self._generate_forwarded_ports(public_ports)
-        status = {"forwardedPorts": forwarded_ports}
-        status_path = self._status_path(vm_id)
-        if not os.path.exists(os.path.dirname(status_path)):
-            os.makedirs(os.path.dirname(status_path))
-        with open(status_path, "w") as status_file:
-            json.dump(status, status_file)
         
-        kvm_forward_ports = []
-        for guest_port, host_port in forwarded_ports.iteritems():
-            kvm_forward_ports.append("hostfwd=tcp::{0}-:{1}".format(host_port, guest_port))
-        process = local_shell.spawn([
-            "kvm", "-machine", "accel=kvm", "-snapshot",
-            "-nographic", "-serial", "none",
-            "-m", "512",
-            "-drive", "file={0},if=virtio".format(image_path),
-            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
-            "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", vm_id,
-        ])
+        self._write_status(vm_id, forwarded_ports)
+        
+        process = self._start_kvm_process(image_path, forwarded_ports, vm_id)
+        
         machine = QemuMachine(vm_id, forwarded_ports)
         self._wait_for_ssh(process, machine)
         
@@ -53,6 +38,32 @@ class QemuProvider(object):
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
+    
+    def _write_status(self, vm_id, forwarded_ports):
+        status = {"forwardedPorts": forwarded_ports}
+        status_path = self._status_path(vm_id)
+        
+        if not os.path.exists(os.path.dirname(status_path)):
+            os.makedirs(os.path.dirname(status_path))
+            
+        with open(status_path, "w") as status_file:
+            json.dump(status, status_file)
+    
+    def _start_kvm_process(self, image_path, forwarded_ports, vm_id):
+        kvm_forward_ports = [
+            "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
+            for guest_port, host_port
+            in forwarded_ports.iteritems()
+        ]
+        return local_shell.spawn([
+            "kvm", "-machine", "accel=kvm", "-snapshot",
+            "-nographic", "-serial", "none",
+            "-m", "512",
+            "-drive", "file={0},if=virtio".format(image_path),
+            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
+            "-device", "virtio-net-pci,netdev=guest0",
+            "-uuid", vm_id,
+        ])
     
     def _wait_for_ssh(self, process, machine):
         for i in range(0, 60):
