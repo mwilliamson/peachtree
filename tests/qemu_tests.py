@@ -48,16 +48,6 @@ def can_restart_vm():
         
         
 @istest
-def can_find_running_machine_using_identifier_and_then_stop_vm():
-    with qemu_provider.start(_IMAGE_NAME) as original_vm:
-        identifier = original_vm.identifier
-        
-        vm = qemu_provider.find_running_machine(identifier)
-        assert vm.is_running()
-        vm.destroy()
-        assert not vm.is_running()
-        
-@istest
 def find_running_machine_returns_none_if_there_is_no_such_machine():
     assert qemu_provider.find_running_machine("wonderful") is None
         

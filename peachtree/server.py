@@ -37,14 +37,16 @@ def start_server(port, provider):
             public_ports=public_ports,
             timeout=_default_timeout
         )
-        ssh_config = machine.ssh_config()
-        root_ssh_config = machine.ssh_config("root")
+        return _describe_machine(machine)
         
-        return {
-            "identifier": machine.identifier,
-            "sshConfig": sshconfig.to_dict(ssh_config),
-            "rootSshConfig": sshconfig.to_dict(root_ssh_config),
-        }
+    @view
+    def running_machine(post):
+        identifier = post.get("identifier")
+        machine = provider.find_running_machine(identifier)
+        if machine is None:
+            return None
+        else:
+            return _describe_machine(machine)
     
     @view
     def is_running(post):
@@ -68,12 +70,23 @@ def start_server(port, provider):
         if machine is not None:
             machine.destroy()
         return {"status": "OK"}
+    
+    def _describe_machine(machine):
+        ssh_config = machine.ssh_config()
+        root_ssh_config = machine.ssh_config("root")
         
+        return {
+            "identifier": machine.identifier,
+            "sshConfig": sshconfig.to_dict(ssh_config),
+            "rootSshConfig": sshconfig.to_dict(root_ssh_config),
+        }
     
     config = Configurator()
     
     config.add_route('start', '/start')
     config.add_view(start, route_name='start')
+    config.add_route('running_machine', '/running-machine')
+    config.add_view(running_machine, route_name='running_machine')
     config.add_route('is_running', '/is-running')
     config.add_view(is_running, route_name='is_running')
     config.add_route('public_port', '/public-port')

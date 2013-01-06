@@ -49,4 +49,15 @@ def can_ensure_that_ports_are_available(provider):
         assert_equals("Hello there\n", result.output)
 
 
+@test
+def can_find_running_machine_using_identifier_and_then_stop_machine(provider):
+    with provider.start(_IMAGE_NAME) as original_machine:
+        identifier = original_machine.identifier
+        
+        machine = provider.find_running_machine(identifier)
+        assert machine.is_running()
+        machine.destroy()
+        assert not machine.is_running()
+
+
 create = suite_builder.create    

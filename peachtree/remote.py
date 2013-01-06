@@ -21,6 +21,10 @@ class RemoteProvider(object):
         response = self._api.start(image_name, public_ports=public_ports)
         return RemoteMachine(response, self._api)
 
+    def find_running_machine(self, identifier):
+        response = self._api.running_machine(identifier)
+        return RemoteMachine(response, self._api)
+
     def _url(self, path):
         return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))
     
@@ -33,7 +37,7 @@ class RemoteProvider(object):
 
 class RemoteMachine(object):
     def __init__(self, desc, api):
-        self._identifier = desc["identifier"]
+        self.identifier = desc["identifier"]
         self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
         self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
         self._api = api
@@ -48,13 +52,13 @@ class RemoteMachine(object):
         return self._root_ssh_config.shell()
     
     def is_running(self):
-        return self._api.is_running(self._identifier)
+        return self._api.is_running(self.identifier)
     
     def public_port(self, guest_port):
-        return self._api.public_port(self._identifier, guest_port)
+        return self._api.public_port(self.identifier, guest_port)
     
     def destroy(self):
-        self._api.destroy(self._identifier)
+        self._api.destroy(self.identifier)
     
     def __enter__(self):
         return self
@@ -64,39 +68,49 @@ class RemoteMachine(object):
 
 
 class RemoteApi(object):
+    _action_timeout = 60
+    _info_timeout = 10
+    
     def __init__(self, base_url):
         self._base_url = base_url
         
-    def start(self, image_name, public_ports):
+    def start(self, image_name, public_ports=None):
         data = {
             "image-name": image_name,
-            "public-ports": ",".join(map(str, public_ports))
+            "public-ports": ",".join(map(str, public_ports or []))
         }
         return self._post(
             "start",
             data=data,
-            timeout=60
+            timeout=self._action_timeout
+        )
+        
+    def running_machine(self, identifier):
+        return self._post(
+            "running-machine",
+            data={"identifier": identifier},
+            timeout=self._info_timeout
         )
         
     def is_running(self, identifier):
         return self._post(
             "is-running",
             data={"identifier": identifier},
-            timeout=10
+            timeout=self._info_timeout
         )["isRunning"]
         
     def public_port(self, identifier, port):
         return self._post(
             "public-port",
             data={"identifier": identifier, "guest-port": port},
-            timeout=10
+            timeout=self._info_timeout
         )["port"]
         
     def destroy(self, identifier):
         return self._post(
             "destroy",
             data={"identifier": identifier},
-            timeout=60,
+            timeout=self._action_timeout,
         )
 
     def _post(self, path, data, timeout):
