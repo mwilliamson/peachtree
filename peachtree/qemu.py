@@ -29,7 +29,8 @@ class Provider(object):
         
         self._write_status(identifier, image_name, forwarded_ports, timeout)
         
-        return self._virtualiser.start(image_path, forwarded_ports, identifier)
+        machine = self._virtualiser.start(image_path, forwarded_ports, identifier)
+        return self._wrap_machine(machine)
         
     def _generate_forwarded_ports(self, public_ports):
         forwarded_ports = {}
@@ -69,7 +70,11 @@ class Provider(object):
         return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
-        return self._virtualiser.machine_from_status(status)
+        return self._wrap_machine(self._virtualiser.machine_from_status(status))
+        
+    def _wrap_machine(self, machine):
+        statuses = Statuses(self._status_dir())
+        return MachineWrapper(machine, statuses)
     
     def _no_such_machine_error(self, identifier):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
@@ -89,7 +94,6 @@ class Provider(object):
         return os.path.join(xdg_data_home, "peachtree/qemu")
     
     def list_running_machines(self):
-        self._clean_status_dir()
         return self._read_statuses()
     
     def _clean_status_dir(self):
@@ -200,6 +204,38 @@ class MachineStatus(object):
         return QemuMachine(status.identifier, forwarded_ports=status.forwarded_ports)
 
 
+class Statuses(object):
+    def __init__(self, status_dir):
+        self._status_dir = status_dir
+        
+    def remove(self, identifier):
+        try:
+            os.remove(os.path.join(self._status_dir, identifier))
+        except OSError as error:
+            # ENOENT: Machine has been shut down in the interim, so ignore
+            if error.errno != errno.ENOENT:
+                raise
+
+
+class MachineWrapper(object):
+    def __init__(self, machine, statuses):
+        self._machine = machine
+        self._statuses = statuses
+
+    def __getattr__(self, key):
+        return getattr(self._machine, key)
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, *args):
+        self.destroy()
+        
+    def destroy(self):
+        self._machine.destroy()
+        self._statuses.remove(self._machine.identifier)
+        
+
 class QemuMachine(object):
     unprivileged_username = "qemu-user"
     hostname = "127.0.0.1"
@@ -208,12 +244,6 @@ class QemuMachine(object):
     def __init__(self, identifier, forwarded_ports):
         self.identifier = identifier
         self._forwarded_ports = forwarded_ports
-    
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        self.destroy()
     
     def is_running(self):
         return self._process_id() is not None
