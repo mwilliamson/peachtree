@@ -11,6 +11,7 @@ import spur
 import starboard
 
 from . import wait
+from .sshconfig import SshConfig
 
 local_shell = spur.LocalShell()
 
@@ -26,7 +27,6 @@ def qemu_provider(command=None, accel_arg=None, *args, **kwargs):
 
 
 def _find_qemu_command():
-    local_shell = spur.LocalShell()
     for command in ["qemu", "kvm"]:
         if local_shell.run(["which", command], allow_error=True).return_code == 0:
             return command
@@ -304,7 +304,7 @@ class QemuMachine(object):
         return SshConfig(
             hostname="127.0.0.1",
             port=self.public_port(_GUEST_SSH_PORT),
-            username=user,
+            user=user,
             password=self._password
         )
         
@@ -316,22 +316,6 @@ class QemuMachine(object):
         
     def __exit__(self, *args):
         self.destroy()
-
-
-class SshConfig(object):
-    def __init__(self, hostname, port, username, password):
-        self.hostname = hostname
-        self.port = port
-        self.user = username
-        self.password = password
-
-    def shell(self):
-        return spur.SshShell(
-            hostname=self.hostname,
-            port=self.port,
-            username=self.user,
-            password=self.password
-        )
     
 
 _GUEST_SSH_PORT = 22
