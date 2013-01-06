@@ -84,19 +84,17 @@ class Provider(object):
         ])
         
     def _wait_for_ssh(self, process, machine):
-        timeout = 60
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            try:
-                if not process.is_running():
-                    raise process.wait_for_result().to_error()
-                machine.root_shell().run(["true"])
-                return
-            except (socket.error, paramiko.SSHException):
-                last_exception = sys.exc_info()
-                time.sleep(1)
-        
-        raise last_exception[0], last_exception[1], last_exception[2]
+        def attempt_ssh_command():
+            if not process.is_running():
+                raise process.wait_for_result().to_error()
+            machine.root_shell().run(["true"])
+            
+        wait.wait_until_successful(
+            attempt_ssh_command,
+            errors=(socket.error, paramiko.SSHException),
+            timeout=60,
+            wait_time=1
+        )
         
     def find_running_machine(self, identifier):
         machine = self._find_machine(identifier)
@@ -255,7 +253,7 @@ class QemuMachine(object):
         
         wait.wait_until_not(
             self.is_running, timeout=10, wait_time=0.1,
-            message="Failed to kill VM {0}".format(self.identifier)
+            error_message="Failed to kill VM {0}".format(self.identifier)
         )
         
         self._statuses.remove(self.identifier)
