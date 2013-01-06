@@ -1,15 +1,6 @@
-from . import qemu
-
-
-def qemu_provider(*args, **kwargs):
-    return qemu.Provider(["qemu"], *args, **kwargs)
-
-    
-def kvm_provider(*args, **kwargs):
-    return qemu.Provider(["kvm", "-machine", "accel=kvm"], *args, **kwargs)
+from .qemu import qemu_provider
 
 
 providers = {
     "qemu": qemu_provider,
-    "kvm": kvm_provider,
 }

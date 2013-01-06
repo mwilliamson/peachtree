@@ -10,6 +10,7 @@ import peachtree
 import peachtree.qemu
 
 from .tempdir import create_temporary_dir
+from peachtree import wait
 
 import logging
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -18,7 +19,7 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 _IMAGE_NAME="ubuntu-precise-amd64"
 
 
-qemu_provider = peachtree.kvm_provider()
+qemu_provider = peachtree.qemu_provider()
 
 @istest
 def can_run_commands_on_vm():
@@ -80,8 +81,17 @@ def error_is_raised_if_identifier_is_invalid():
 @istest
 def error_is_raised_if_vm_with_id_is_not_running():
     with qemu_provider.start(_IMAGE_NAME) as vm:
-        # Yes, this is a bit evil
-        spur.LocalShell().run(["pkill", "-f", vm.identifier])
+        def process_is_running():
+            result = spur.LocalShell().run(
+                ["pgrep", "-f", vm.identifier],
+                allow_error=True
+            )
+            return result.return_code == 0
+            
+        assert process_is_running()
+        vm.root_shell().run(["shutdown", "-h", "now"])
+        
+        wait.wait_until_not(process_is_running, timeout=10, wait_time=0.1)
         
         try:
             qemu_provider.find_running_machine(vm.identifier)
@@ -152,4 +162,4 @@ def provider_with_temp_data_dir():
         os.makedirs(os.path.dirname(temp_image_path))
         os.symlink(image_path, temp_image_path)
         
-        yield peachtree.kvm_provider(data_dir=data_dir)
+        yield peachtree.qemu_provider(data_dir=data_dir)

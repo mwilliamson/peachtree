@@ -12,13 +12,33 @@ import paramiko
 import spur
 import starboard
 
+from . import wait
 
 local_shell = spur.LocalShell()
 
 
+def qemu_provider(command=None, accel_arg=None, *args, **kwargs):
+    if accel_arg is None:
+        accel_arg = "kvm:tcg"
+    
+    if command is None:
+        command = _find_qemu_command()
+        
+    return Provider(command, accel_arg, *args, **kwargs)
+
+
+def _find_qemu_command():
+    local_shell = spur.LocalShell()
+    for command in ["qemu", "kvm"]:
+        if local_shell.run(["which", command], allow_error=True).return_code == 0:
+            return command
+    raise RuntimeError("Could not find qemu")
+
+
 class Provider(object):
-    def __init__(self, command, data_dir=None):
+    def __init__(self, command, accel_arg, data_dir=None):
         self._command = command
+        self._accel_arg = accel_arg
         self._data_dir = data_dir or _default_data_dir()
         self._statuses = Statuses(self._status_dir())
         self._images = Images(self._data_dir)
@@ -29,10 +49,12 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
+        self._statuses.write(
+            self._command, identifier, image_name, forwarded_ports, timeout)
         
         process = self._start_process(image_path, forwarded_ports, identifier)
-        machine = QemuMachine(identifier, forwarded_ports, self._statuses)
+        machine = QemuMachine(
+            self._command, identifier, forwarded_ports, self._statuses)
         
         self._wait_for_ssh(process, machine)
         return machine
@@ -52,7 +74,8 @@ class Provider(object):
             for guest_port, host_port
             in forwarded_ports.iteritems()
         ]
-        return local_shell.spawn(self._command + [
+        return local_shell.spawn([
+            self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
@@ -91,6 +114,7 @@ class Provider(object):
         
     def _machine_from_status(self, status):
         return QemuMachine(
+            status.command,
             status.identifier,
             forwarded_ports=status.forwarded_ports,
             statuses=self._statuses
@@ -140,6 +164,7 @@ def _default_data_dir():
 
 class MachineStatus(object):
     _fields = [
+        ("command", "command"),
         ("imageName", "image_name"),
         ("forwardedPorts", "forwarded_ports"),
         ("startTime", "start_time"),
@@ -170,13 +195,14 @@ class Statuses(object):
             if error.errno != errno.ENOENT:
                 raise
     
-    def write(self, identifier, image_name, forwarded_ports, timeout):
+    def write(self, command, identifier, image_name, forwarded_ports, timeout):
         start_time = time.time()
         status = {
+            "command": command,
             "imageName": image_name,
             "forwardedPorts": forwarded_ports,
             "startTime": start_time,
-            "timeout": timeout
+            "timeout": timeout,
         }
         status_path = self._status_path(identifier)
         
@@ -215,7 +241,8 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, identifier, forwarded_ports, statuses):
+    def __init__(self, command, identifier, forwarded_ports, statuses):
+        self._command = command
         self.identifier = identifier
         self._forwarded_ports = forwarded_ports
         self._statuses = statuses
@@ -227,10 +254,16 @@ class QemuMachine(object):
         process_id = self._process_id()
         if process_id is not None:
             local_shell.run(["kill", str(process_id)])
+        
+        wait.wait_until_not(
+            self.is_running, timeout=10, wait_time=0.1,
+            message="Failed to kill VM {0}".format(self.identifier)
+        )
+        
         self._statuses.remove(self.identifier)
         
     def _process_id(self):
-        pgrep_regex = "^kvm .*{0}".format(self.identifier)
+        pgrep_regex = "^{0} .*{1}".format(self._command, self.identifier)
         result = local_shell.run(["pgrep", "-f", pgrep_regex], allow_error=True)
         # Return code of 1 indicates no processes matched
         if result.return_code not in [0, 1]:
