@@ -20,6 +20,7 @@ class Provider(object):
     def __init__(self, data_dir=None, virtualiser=None):
         self._data_dir = data_dir or self._default_data_dir()
         self._virtualiser = virtualiser or Qemu()
+        self._statuses = Statuses(self._status_dir())
     
     def start(self, image_name, public_ports=None, timeout=None):
         image_path = self.image_path(image_name)
@@ -27,7 +28,7 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._write_status(identifier, image_name, forwarded_ports, timeout)
+        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
         
         machine = self._virtualiser.start(image_path, forwarded_ports, identifier)
         return self._wrap_machine(machine)
@@ -40,22 +41,6 @@ class Provider(object):
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
-    
-    def _write_status(self, identifier, image_name, forwarded_ports, timeout):
-        start_time = time.time()
-        status = {
-            "imageName": image_name,
-            "forwardedPorts": forwarded_ports,
-            "startTime": start_time,
-            "timeout": timeout
-        }
-        status_path = self._status_path(identifier)
-        
-        if not os.path.exists(os.path.dirname(status_path)):
-            os.makedirs(os.path.dirname(status_path))
-            
-        with open(status_path, "w") as status_file:
-            json.dump(status, status_file)
         
     def find_running_machine(self, identifier):
         machine = self._find_machine(identifier)
@@ -64,7 +49,7 @@ class Provider(object):
         return machine
         
     def _find_machine(self, identifier):
-        status = self._read_status(identifier)
+        status = self._statuses.read(identifier)
         if status is None:
             raise self._no_such_machine_error(identifier)
         return self._machine_from_status(status)
@@ -73,8 +58,7 @@ class Provider(object):
         return self._wrap_machine(self._virtualiser.machine_from_status(status))
         
     def _wrap_machine(self, machine):
-        statuses = Statuses(self._status_dir())
-        return MachineWrapper(machine, statuses)
+        return MachineWrapper(machine, self._statuses)
     
     def _no_such_machine_error(self, identifier):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
@@ -83,9 +67,6 @@ class Provider(object):
     def image_path(self, image_name):
         return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
     
-    def _status_path(self, identifier):
-        return os.path.join(self._status_dir(), identifier)
-        
     def _status_dir(self):
         return os.path.join(self._data_dir, "status")
     
@@ -94,47 +75,20 @@ class Provider(object):
         return os.path.join(xdg_data_home, "peachtree/qemu")
     
     def list_running_machines(self):
-        return self._read_statuses()
+        return self._statuses.read_all()
     
-    def _clean_status_dir(self):
-        if not os.path.exists(self._status_dir()):
-            return
-        identifiers = os.listdir(self._status_dir())
-        for identifier in identifiers:
-            machine = self._find_machine(identifier)
+    def _clean_statuses(self):
+        for status in self._statuses.read_all():
+            machine = self._machine_from_status(status)
             if not machine.is_running():
-                try:
-                    os.remove(os.path.join(self._status_dir(), identifier))
-                except IOError as error:
-                    if error.errno != errno.ENOENT:
-                        raise
-                        
-    def _read_statuses(self):
-        if not os.path.exists(self._status_dir()):
-            return []
-        identifiers = os.listdir(self._status_dir())
-        statuses = map(self._read_status, identifiers)
-        return filter(lambda status: status is not None, statuses)
-    
-    def _read_status(self, identifier):
-        status_file_path = os.path.join(self._status_dir(), identifier)
-        try:
-            with open(status_file_path) as status_file:
-                status_json = json.load(status_file)
-            return MachineStatus(identifier, status_json)
-        except IOError as error:
-            # ENOENT: Machine has been shut down in the interim, so ignore
-            if error.errno == errno.ENOENT:
-                return None
-            else:
-                raise
+                self._statuses.remove(status.identifier)
                 
     def cron(self):
         self._stop_machines_past_timeout()
-        self._clean_status_dir()
+        self._clean_statuses()
         
     def _stop_machines_past_timeout(self):
-        statuses = self._read_statuses()
+        statuses = self._statuses.read_all()
         for status in statuses:
             if status.timeout is not None:
                 running_time = time.time() - status.start_time
@@ -210,11 +164,50 @@ class Statuses(object):
         
     def remove(self, identifier):
         try:
-            os.remove(os.path.join(self._status_dir, identifier))
+            os.remove(self._status_path(identifier))
         except OSError as error:
             # ENOENT: Machine has been shut down in the interim, so ignore
             if error.errno != errno.ENOENT:
                 raise
+    
+    def write(self, identifier, image_name, forwarded_ports, timeout):
+        start_time = time.time()
+        status = {
+            "imageName": image_name,
+            "forwardedPorts": forwarded_ports,
+            "startTime": start_time,
+            "timeout": timeout
+        }
+        status_path = self._status_path(identifier)
+        
+        if not os.path.exists(os.path.dirname(status_path)):
+            os.makedirs(os.path.dirname(status_path))
+            
+        with open(status_path, "w") as status_file:
+            json.dump(status, status_file)
+    
+    def read(self, identifier):
+        status_file_path = self._status_path(identifier)
+        try:
+            with open(status_file_path) as status_file:
+                status_json = json.load(status_file)
+            return MachineStatus(identifier, status_json)
+        except IOError as error:
+            # ENOENT: Machine has been shut down in the interim, so ignore
+            if error.errno == errno.ENOENT:
+                return None
+            else:
+                raise
+                        
+    def read_all(self):
+        if not os.path.exists(self._status_dir):
+            return []
+        identifiers = os.listdir(self._status_dir)
+        statuses = map(self.read, identifiers)
+        return filter(lambda status: status is not None, statuses)
+    
+    def _status_path(self, identifier):
+        return os.path.join(self._status_dir, identifier)
 
 
 class MachineWrapper(object):
