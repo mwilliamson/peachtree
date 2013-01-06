@@ -1,5 +1,6 @@
 import os
 import contextlib
+import time
 
 from nose.tools import istest, assert_equals
 from hamcrest import assert_that, contains, has_property, is_not
@@ -126,7 +127,12 @@ def machines_that_have_stopped_are_not_in_list_of_running_machines():
             pass
         running_machines = provider.list_running_machines()
         assert_equals([], running_machines)
-
+        
+@istest
+def running_cron_kills_any_running_machines_past_timeout():
+    with peachtree.start_kvm(_IMAGE_NAME, timeout=0) as machine:
+        peachtree.cron()
+        assert not machine.is_running()
 
 
 @contextlib.contextmanager

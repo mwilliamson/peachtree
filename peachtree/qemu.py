@@ -6,6 +6,7 @@ import sys
 import json
 import errno
 import collections
+import threading
 
 import paramiko
 import spur
@@ -19,13 +20,13 @@ class QemuProvider(object):
     def __init__(self, data_dir=None):
         self._data_dir = data_dir or self._default_data_dir()
     
-    def start(self, image_name, public_ports=None):
+    def start(self, image_name, public_ports=None, timeout=None):
         image_path = self.image_path(image_name)
         identifier = str(uuid.uuid4())
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._write_status(identifier, image_name, forwarded_ports)
+        self._write_status(identifier, image_name, forwarded_ports, timeout)
         
         process = self._start_kvm_process(image_path, forwarded_ports, identifier)
         
@@ -43,10 +44,13 @@ class QemuProvider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
     
-    def _write_status(self, identifier, image_name, forwarded_ports):
+    def _write_status(self, identifier, image_name, forwarded_ports, timeout):
+        start_time = time.time()
         status = {
             "imageName": image_name,
             "forwardedPorts": forwarded_ports,
+            "startTime": start_time,
+            "timeout": timeout
         }
         status_path = self._status_path(identifier)
         
@@ -92,21 +96,18 @@ class QemuProvider(object):
         return machine
         
     def _find_machine(self, identifier):
-        try:
-            with open(self._status_path(identifier), "r") as status_file:
-                status = json.load(status_file)
-        except IOError as error:
-            if error.errno == errno.ENOENT:
-                raise self._no_such_machine_error(identifier)
-            else:
-                raise
-            
+        status = self._read_status(identifier)
+        if status is None:
+            raise self._no_such_machine_error(identifier)
+        return self._machine_from_status(status)
+        
+    def _machine_from_status(self, status):
         forwarded_ports = dict(
             (int(guest_port), host_port)
             for guest_port, host_port
-            in status["forwardedPorts"].iteritems()
+            in status.forwarded_ports.iteritems()
         )
-        return QemuMachine(identifier, forwarded_ports=forwarded_ports)
+        return QemuMachine(status.identifier, forwarded_ports=forwarded_ports)
     
     def _no_such_machine_error(self, identifier):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
@@ -126,25 +127,12 @@ class QemuProvider(object):
         return os.path.join(xdg_data_home, "peachtree/qemu")
     
     def list_running_machines(self):
-        if not os.path.exists(self._status_dir()):
-            return []
         self._clean_status_dir()
-        identifiers = os.listdir(self._status_dir())
-        statuses = []
-        for identifier in identifiers:
-            status_file_path = os.path.join(self._status_dir(), identifier)
-            try:
-                with open(status_file_path) as status_file:
-                    status_json = json.load(status_file)
-                status = MachineStatus(identifier, status_json["imageName"])
-                statuses.append(status)
-            except IOError as error:
-                # ENOENT: Machine has been shut down in the interim, so ignore
-                if error.errno != errno.ENOENT:
-                    raise
-        return statuses
+        return self._read_statuses()
     
     def _clean_status_dir(self):
+        if not os.path.exists(self._status_dir()):
+            return
         identifiers = os.listdir(self._status_dir())
         for identifier in identifiers:
             machine = self._find_machine(identifier)
@@ -154,12 +142,52 @@ class QemuProvider(object):
                 except IOError as error:
                     if error.errno != errno.ENOENT:
                         raise
+                        
+    def _read_statuses(self):
+        if not os.path.exists(self._status_dir()):
+            return []
+        identifiers = os.listdir(self._status_dir())
+        statuses = map(self._read_status, identifiers)
+        return filter(lambda status: status is not None, statuses)
+    
+    def _read_status(self, identifier):
+        status_file_path = os.path.join(self._status_dir(), identifier)
+        try:
+            with open(status_file_path) as status_file:
+                status_json = json.load(status_file)
+            return MachineStatus(identifier, status_json)
+        except IOError as error:
+            # ENOENT: Machine has been shut down in the interim, so ignore
+            if error.errno == errno.ENOENT:
+                return None
+            else:
+                raise
+                
+    def cron(self):
+        self._stop_machines_past_timeout()
+        self._clean_status_dir()
+        
+    def _stop_machines_past_timeout(self):
+        statuses = self._read_statuses()
+        for status in statuses:
+            if status.timeout is not None:
+                running_time = time.time() - status.start_time
+                if running_time > status.timeout:
+                    self._machine_from_status(status).destroy()
 
 
-MachineStatus = collections.namedtuple(
-    "MachineStatus",
-    ["identifier", "image_name"]
-)
+class MachineStatus(object):
+    _fields = [
+        ("imageName", "image_name"),
+        ("forwardedPorts", "forwarded_ports"),
+        ("startTime", "start_time"),
+        ("timeout", "timeout"),
+    ]
+    
+    def __init__(self, identifier, json):
+        self.identifier = identifier
+        for json_name, py_name in self._fields:
+            setattr(self, py_name, json[json_name])
 
 
 class QemuMachine(object):
