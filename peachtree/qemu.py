@@ -98,15 +98,19 @@ class Provider(object):
         
     def find_running_machine(self, identifier):
         machine = self._find_machine(identifier)
-        if not machine.is_running():
-            raise self._no_such_machine_error(identifier)
-        return machine
+        if machine is None:
+            return None
+        elif machine.is_running():
+            return machine
+        else:
+            return None
         
     def _find_machine(self, identifier):
         status = self._statuses.read(identifier)
         if status is None:
-            raise self._no_such_machine_error(identifier)
-        return self._machine_from_status(status)
+            return None
+        else:
+            return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
         return QemuMachine(
@@ -115,10 +119,6 @@ class Provider(object):
             forwarded_ports=status.forwarded_ports,
             statuses=self._statuses
         )
-    
-    def _no_such_machine_error(self, identifier):
-        message = 'Could not find running VM with id "{0}"'.format(identifier)
-        return RuntimeError(message)
     
     def list_running_machines(self):
         return self._statuses.read_all()

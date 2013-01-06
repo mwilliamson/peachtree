@@ -51,9 +51,10 @@ def can_restart_vm():
         result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
         assert_equals(1, result.return_code)
         
+        
 @istest
-def can_detect_if_vm_is_running():
-    with qemu_provider.start(_IMAGE_NAME) as vm:
+def machine_is_not_running_after_context_manager_for_machine_exits():
+    with qemu_provider.start(_IMAGE_NAME) as machine:
         assert vm.is_running()
         
     assert not vm.is_running()
