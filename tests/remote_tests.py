@@ -20,4 +20,4 @@ def _create_remote_provider():
             yield provider
 
 
-RemoteProviderTests = provider_tests.create("RemoteTests", _create_remote_provider)
+RemoteTests = provider_tests.create("RemoteTests", _create_remote_provider)

@@ -11,7 +11,7 @@ _IMAGE_NAME="ubuntu-precise-amd64"
 
 
 @test
-def can_run_commands_on_vm(provider):
+def can_run_commands_on_machine(provider):
     with provider.start(_IMAGE_NAME) as machine:
         shell = machine.shell()
         result = shell.run(["echo", "Hello there"])
@@ -19,10 +19,20 @@ def can_run_commands_on_vm(provider):
 
 
 @test
+def can_run_commands_on_machine_as_root(provider):
+    with provider.start(_IMAGE_NAME) as machine:
+        shell = machine.root_shell()
+        shell.run(["sh", "-c", "echo hello there > /root/hello"])
+        result = shell.run(["cat", "/root/hello"])
+        assert_equals("hello there\n", result.output)
+
+
+@test
 def machine_is_not_running_after_context_manager_for_machine_exits(provider):
     with provider.start(_IMAGE_NAME) as machine:
         assert machine.is_running()
     assert not machine.is_running()
+
 
 
 create = suite_builder.create    

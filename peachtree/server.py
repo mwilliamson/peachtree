@@ -29,10 +29,12 @@ def start_server(port, provider):
         image_name = post.get("image-name")
         machine = provider.start(image_name, timeout=_default_timeout)
         ssh_config = machine.ssh_config()
+        root_ssh_config = machine.ssh_config("root")
         
         return {
             "identifier": machine.identifier,
-            "sshConfig": sshconfig.to_dict(ssh_config)
+            "sshConfig": sshconfig.to_dict(ssh_config),
+            "rootSshConfig": sshconfig.to_dict(root_ssh_config),
         }
     
     @view

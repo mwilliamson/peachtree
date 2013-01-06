@@ -35,10 +35,14 @@ class RemoteMachine(object):
     def __init__(self, desc, api):
         self._identifier = desc["identifier"]
         self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
+        self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
         self._api = api
         
     def shell(self):
         return self._ssh_config.shell()
+        
+    def root_shell(self):
+        return self._root_ssh_config.shell()
     
     def is_running(self):
         return self._api.is_running(self._identifier)["isRunning"]

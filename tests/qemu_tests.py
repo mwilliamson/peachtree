@@ -38,20 +38,6 @@ QemuProviderTests = provider_tests.create(
 
 
 @istest
-def can_ensure_that_ports_are_available():
-    with qemu_provider.start(_IMAGE_NAME, public_ports=[50022]) as vm:
-        root_shell = vm.root_shell()
-        root_shell.run(["sh", "-c", "echo Port 50022 >> /etc/ssh/sshd_config"])
-        root_shell.run(["service", "ssh", "restart"])
-        
-        ssh_config = vm.ssh_config()
-        ssh_config.port = vm.public_port(50022)
-        shell = ssh_config.shell()
-        result = shell.run(["echo", "Hello there"])
-        assert_equals("Hello there\n", result.output)
-
-
-@istest
 def can_restart_vm():
     with qemu_provider.start(_IMAGE_NAME) as vm:
         vm.shell().run(["touch", "/tmp/hello"])
