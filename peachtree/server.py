@@ -27,7 +27,16 @@ def start_server(port, provider):
     @view
     def start(post):
         image_name = post.get("image-name")
-        machine = provider.start(image_name, timeout=_default_timeout)
+        public_ports = [
+            int(port)
+            for port in post.get("public-ports").split(",")
+            if port
+        ]
+        machine = provider.start(
+            image_name,
+            public_ports=public_ports,
+            timeout=_default_timeout
+        )
         ssh_config = machine.ssh_config()
         root_ssh_config = machine.ssh_config("root")
         
@@ -43,6 +52,14 @@ def start_server(port, provider):
         machine = provider.find_running_machine(identifier)
         is_running = machine is not None
         return {"isRunning": is_running}
+    
+    @view
+    def public_port(post):
+        identifier = post.get("identifier")
+        machine = provider.find_running_machine(identifier)
+        guest_port = int(post.get("guest-port"))
+        public_port = machine.public_port(guest_port)
+        return {"port": public_port}
         
     @view
     def destroy(post):
@@ -59,6 +76,8 @@ def start_server(port, provider):
     config.add_view(start, route_name='start')
     config.add_route('is_running', '/is-running')
     config.add_view(is_running, route_name='is_running')
+    config.add_route('public_port', '/public-port')
+    config.add_view(public_port, route_name='public_port')
     config.add_route('destroy', '/destroy')
     config.add_view(destroy, route_name='destroy')
     

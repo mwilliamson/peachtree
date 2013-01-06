@@ -309,7 +309,7 @@ class QemuMachine(object):
         )
         
     def public_port(self, guest_port):
-        return self._forwarded_ports[guest_port]
+        return self._forwarded_ports.get(guest_port, None)
         
     def __enter__(self):
         return self

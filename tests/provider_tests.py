@@ -34,5 +34,19 @@ def machine_is_not_running_after_context_manager_for_machine_exits(provider):
     assert not machine.is_running()
 
 
+@test
+def can_ensure_that_ports_are_available(provider):
+    with provider.start(_IMAGE_NAME, public_ports=[50022]) as vm:
+        root_shell = vm.root_shell()
+        root_shell.run(["sh", "-c", "echo Port 50022 >> /etc/ssh/sshd_config"])
+        root_shell.run(["service", "ssh", "restart"])
+        
+        ssh_config = vm.ssh_config()
+        ssh_config.port = vm.public_port(50022)
+        assert ssh_config.port is not None
+        shell = ssh_config.shell()
+        result = shell.run(["echo", "Hello there"])
+        assert_equals("Hello there\n", result.output)
+
 
 create = suite_builder.create    

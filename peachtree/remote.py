@@ -16,9 +16,9 @@ class RemoteProvider(object):
     def __init__(self, base_url):
         self._api = RemoteApi(base_url)
         
-    def start(self, image_name):
-        data = {"image-name": image_name}
-        response = self._api.start(image_name)
+    def start(self, image_name, public_ports=None):
+        data = {"image-name": image_name, "public-ports": public_ports}
+        response = self._api.start(image_name, public_ports=public_ports)
         return RemoteMachine(response, self._api)
 
     def _url(self, path):
@@ -37,7 +37,10 @@ class RemoteMachine(object):
         self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
         self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
         self._api = api
-        
+    
+    def ssh_config(self):
+        return self._ssh_config
+    
     def shell(self):
         return self._ssh_config.shell()
         
@@ -45,7 +48,10 @@ class RemoteMachine(object):
         return self._root_ssh_config.shell()
     
     def is_running(self):
-        return self._api.is_running(self._identifier)["isRunning"]
+        return self._api.is_running(self._identifier)
+    
+    def public_port(self, guest_port):
+        return self._api.public_port(self._identifier, guest_port)
     
     def destroy(self):
         self._api.destroy(self._identifier)
@@ -61,8 +67,11 @@ class RemoteApi(object):
     def __init__(self, base_url):
         self._base_url = base_url
         
-    def start(self, image_name):
-        data = {"image-name": image_name}
+    def start(self, image_name, public_ports):
+        data = {
+            "image-name": image_name,
+            "public-ports": ",".join(map(str, public_ports))
+        }
         return self._post(
             "start",
             data=data,
@@ -74,7 +83,14 @@ class RemoteApi(object):
             "is-running",
             data={"identifier": identifier},
             timeout=10
-        )
+        )["isRunning"]
+        
+    def public_port(self, identifier, port):
+        return self._post(
+            "public-port",
+            data={"identifier": identifier, "guest-port": port},
+            timeout=10
+        )["port"]
         
     def destroy(self, identifier):
         return self._post(
