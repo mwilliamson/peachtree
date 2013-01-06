@@ -55,9 +55,9 @@ def can_restart_vm():
 @istest
 def machine_is_not_running_after_context_manager_for_machine_exits():
     with qemu_provider.start(_IMAGE_NAME) as machine:
-        assert vm.is_running()
+        assert machine.is_running()
         
-    assert not vm.is_running()
+    assert not machine.is_running()
         
         
 @istest
@@ -71,15 +71,11 @@ def can_find_running_machine_using_identifier_and_then_stop_vm():
         assert not vm.is_running()
         
 @istest
-def error_is_raised_if_identifier_is_invalid():
-    try:
-        qemu_provider.find_running_machine("wonderful")
-        raise AssertionError("Expected error")
-    except RuntimeError as error:
-        assert_equals('Could not find running VM with id "wonderful"', error.message)
+def find_running_machine_returns_none_if_there_is_no_such_machine():
+    assert qemu_provider.find_running_machine("wonderful") is None
         
 @istest
-def error_is_raised_if_vm_with_id_is_not_running():
+def find_running_machine_returns_none_if_the_machine_has_been_shutdown():
     with qemu_provider.start(_IMAGE_NAME) as vm:
         def process_is_running():
             result = spur.LocalShell().run(
@@ -93,11 +89,7 @@ def error_is_raised_if_vm_with_id_is_not_running():
         
         wait.wait_until_not(process_is_running, timeout=10, wait_time=0.1)
         
-        try:
-            qemu_provider.find_running_machine(vm.identifier)
-            raise AssertionError("Expected error")
-        except RuntimeError as error:
-            assert error.message.startswith('Could not find running VM with id')
+        assert qemu_provider.find_running_machine(vm.identifier) is None
 
 @istest
 def can_run_commands_against_vm_found_using_identifier():
