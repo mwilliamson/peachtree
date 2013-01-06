@@ -1,9 +1,8 @@
 import os
 import contextlib
-import time
 
 from nose.tools import istest, assert_equals
-from hamcrest import assert_that, contains, has_property, is_not
+from hamcrest import assert_that, contains, has_property
 import spur
 
 import peachtree
@@ -126,7 +125,7 @@ def list_of_machines_include_ids():
 @istest
 def list_of_machines_include_image_name():
     with provider_with_temp_data_dir() as provider:
-        with provider.start(_IMAGE_NAME) as original_vm:
+        with provider.start(_IMAGE_NAME):
             running_machines = provider.list_running_machines()
             assert_that(
                 running_machines,
@@ -136,7 +135,7 @@ def list_of_machines_include_image_name():
 @istest
 def machines_that_have_stopped_are_not_in_list_of_running_machines():
     with provider_with_temp_data_dir() as provider:
-        with provider.start(_IMAGE_NAME) as original_vm:
+        with provider.start(_IMAGE_NAME):
             pass
         running_machines = provider.list_running_machines()
         assert_equals([], running_machines)

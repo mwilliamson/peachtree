@@ -5,8 +5,6 @@ import socket
 import sys
 import json
 import errno
-import collections
-import threading
 
 import paramiko
 import spur
