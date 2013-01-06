@@ -35,10 +35,10 @@ class Provider(object):
         return self._wrap_machine(machine)
         
     def _generate_forwarded_ports(self, public_ports):
-        forwarded_ports = {}
-        for port in public_ports:
-            forwarded_ports[port] = self._allocate_host_port(port)
-        return forwarded_ports
+        return dict(
+            (port, self._allocate_host_port(port))
+            for port in public_ports
+        )
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
