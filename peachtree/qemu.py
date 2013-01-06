@@ -17,9 +17,8 @@ local_shell = spur.LocalShell()
 
 
 class Provider(object):
-    def __init__(self, data_dir=None, virtualiser=None):
+    def __init__(self, data_dir=None):
         self._data_dir = data_dir or _default_data_dir()
-        self._virtualiser = virtualiser or Qemu()
         self._statuses = Statuses(self._status_dir())
         self._images = Images(self._data_dir)
     
@@ -31,8 +30,11 @@ class Provider(object):
         
         self._statuses.write(identifier, image_name, forwarded_ports, timeout)
         
-        machine = self._virtualiser.start(image_path, forwarded_ports, identifier)
-        return self._wrap_machine(machine)
+        process = self._start_process(image_path, forwarded_ports, identifier)
+        machine = QemuMachine(identifier, forwarded_ports, self._statuses)
+        
+        self._wait_for_ssh(process, machine)
+        return machine
         
     def _generate_forwarded_ports(self, public_ports):
         return dict(
@@ -42,6 +44,35 @@ class Provider(object):
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
+        
+    def _start_process(self, image_path, forwarded_ports, identifier):
+        kvm_forward_ports = [
+            "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
+            for guest_port, host_port
+            in forwarded_ports.iteritems()
+        ]
+        return local_shell.spawn([
+            "kvm", "-machine", "accel=kvm", "-snapshot",
+            "-nographic", "-serial", "none",
+            "-m", "512",
+            "-drive", "file={0},if=virtio".format(image_path),
+            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
+            "-device", "virtio-net-pci,netdev=guest0",
+            "-uuid", identifier,
+        ])
+        
+    def _wait_for_ssh(self, process, machine):
+        for i in range(0, 60):
+            try:
+                if not process.is_running():
+                    raise process.wait_for_result().to_error()
+                machine.root_shell().run(["true"])
+                return
+            except (socket.error, paramiko.SSHException):
+                last_exception = sys.exc_info()
+                time.sleep(1)
+        
+        raise last_exception[0], last_exception[1], last_exception[2]
         
     def find_running_machine(self, identifier):
         machine = self._find_machine(identifier)
@@ -56,10 +87,11 @@ class Provider(object):
         return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
-        return self._wrap_machine(self._virtualiser.machine_from_status(status))
-        
-    def _wrap_machine(self, machine):
-        return MachineWrapper(machine, self._statuses)
+        return QemuMachine(
+            status.identifier,
+            forwarded_ports=status.forwarded_ports,
+            statuses=self._statuses
+        )
     
     def _no_such_machine_error(self, identifier):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
@@ -102,45 +134,6 @@ def _default_data_dir():
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
     return os.path.join(xdg_data_home, "peachtree/qemu")
     
-    
-class Qemu(object):
-    def start(self, image_path, forwarded_ports, identifier):
-        kvm_forward_ports = [
-            "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
-            for guest_port, host_port
-            in forwarded_ports.iteritems()
-        ]
-        process = local_shell.spawn([
-            "kvm", "-machine", "accel=kvm", "-snapshot",
-            "-nographic", "-serial", "none",
-            "-m", "512",
-            "-drive", "file={0},if=virtio".format(image_path),
-            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
-            "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", identifier,
-        ])
-        
-        machine = QemuMachine(identifier, forwarded_ports)
-        self._wait_for_ssh(process, machine)
-        
-        return machine
-        
-    def machine_from_status(self, status):
-        return QemuMachine(status.identifier, forwarded_ports=status.forwarded_ports)
-    
-    def _wait_for_ssh(self, process, machine):
-        for i in range(0, 60):
-            try:
-                if not process.is_running():
-                    raise process.wait_for_result().to_error()
-                machine.root_shell().run(["true"])
-                return
-            except (socket.error, paramiko.SSHException):
-                last_exception = sys.exc_info()
-                time.sleep(1)
-        
-        raise last_exception[0], last_exception[1], last_exception[2]
-
 
 class MachineStatus(object):
     _fields = [
@@ -160,9 +153,6 @@ class MachineStatus(object):
             for guest_port, host_port
             in self.forwarded_ports.iteritems()
         )
-        
-    def machine_from_status(self, status):
-        return QemuMachine(status.identifier, forwarded_ports=status.forwarded_ports)
 
 
 class Statuses(object):
@@ -217,33 +207,15 @@ class Statuses(object):
         return os.path.join(self._status_dir, identifier)
 
 
-class MachineWrapper(object):
-    def __init__(self, machine, statuses):
-        self._machine = machine
-        self._statuses = statuses
-
-    def __getattr__(self, key):
-        return getattr(self._machine, key)
-        
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        self.destroy()
-        
-    def destroy(self):
-        self._machine.destroy()
-        self._statuses.remove(self._machine.identifier)
-        
-
 class QemuMachine(object):
     unprivileged_username = "qemu-user"
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, identifier, forwarded_ports):
+    def __init__(self, identifier, forwarded_ports, statuses):
         self.identifier = identifier
         self._forwarded_ports = forwarded_ports
+        self._statuses = statuses
     
     def is_running(self):
         return self._process_id() is not None
@@ -252,6 +224,7 @@ class QemuMachine(object):
         process_id = self._process_id()
         if process_id is not None:
             local_shell.run(["kill", str(process_id)])
+        self._statuses.remove(self.identifier)
         
     def _process_id(self):
         pgrep_regex = "^kvm .*{0}".format(self.identifier)
@@ -305,6 +278,12 @@ class QemuMachine(object):
         
     def public_port(self, guest_port):
         return self._forwarded_ports[guest_port]
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, *args):
+        self.destroy()
 
 
 class SshConfig(object):
