@@ -138,8 +138,8 @@ def running_cron_kills_any_running_machines_past_timeout():
 @contextlib.contextmanager
 def provider_with_temp_data_dir():
     with create_temporary_dir() as data_dir:
-        provider = peachtree.qemu.QemuProvider(data_dir=data_dir)
-        image_path = peachtree.qemu.QemuProvider().image_path(_IMAGE_NAME)
+        provider = peachtree.qemu.Provider(data_dir=data_dir)
+        image_path = peachtree.qemu.Provider().image_path(_IMAGE_NAME)
         temp_image_path = provider.image_path(_IMAGE_NAME)
         os.makedirs(os.path.dirname(temp_image_path))
         os.symlink(image_path, temp_image_path)

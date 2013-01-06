@@ -1,7 +1,7 @@
 from . import qemu
 
 
-provider = qemu.QemuProvider()
+provider = qemu.Provider()
 
 
 def start_kvm(image_name, public_ports=None, timeout=None):

@@ -16,7 +16,7 @@ import starboard
 local_shell = spur.LocalShell()
 
 
-class QemuProvider(object):
+class Provider(object):
     def __init__(self, data_dir=None, virtualiser=None):
         self._data_dir = data_dir or self._default_data_dir()
         self._virtualiser = virtualiser or Qemu()
