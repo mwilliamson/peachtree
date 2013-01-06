@@ -10,6 +10,7 @@ import peachtree.qemu
 
 from .tempdir import create_temporary_dir
 from peachtree import wait
+from . import provider_tests
 
 import logging
 logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -20,12 +21,20 @@ _IMAGE_NAME="ubuntu-precise-amd64"
 
 qemu_provider = peachtree.qemu_provider()
 
-@istest
-def can_run_commands_on_vm():
-    with qemu_provider.start(_IMAGE_NAME) as vm:
-        shell = vm.shell()
-        result = shell.run(["echo", "Hello there"])
-        assert_equals("Hello there\n", result.output)
+@contextlib.contextmanager
+def provider_with_temp_data_dir():
+    with create_temporary_dir() as data_dir:
+        image_path = peachtree.qemu.Images().image_path(_IMAGE_NAME)
+        temp_image_path = peachtree.qemu.Images(data_dir).image_path(_IMAGE_NAME)
+        os.makedirs(os.path.dirname(temp_image_path))
+        os.symlink(image_path, temp_image_path)
+        
+        yield peachtree.qemu_provider(data_dir=data_dir)
+
+QemuProviderTests = provider_tests.create(
+    "QemuProviderTests",
+    provider_with_temp_data_dir
+)
 
 
 @istest
@@ -50,14 +59,6 @@ def can_restart_vm():
         
         result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
         assert_equals(1, result.return_code)
-        
-        
-@istest
-def machine_is_not_running_after_context_manager_for_machine_exits():
-    with qemu_provider.start(_IMAGE_NAME) as machine:
-        assert machine.is_running()
-        
-    assert not machine.is_running()
         
         
 @istest
@@ -145,13 +146,3 @@ def cron_does_not_kill_machines_without_timeout():
         qemu_provider.cron()
         assert machine.is_running()
 
-
-@contextlib.contextmanager
-def provider_with_temp_data_dir():
-    with create_temporary_dir() as data_dir:
-        image_path = peachtree.qemu.Images().image_path(_IMAGE_NAME)
-        temp_image_path = peachtree.qemu.Images(data_dir).image_path(_IMAGE_NAME)
-        os.makedirs(os.path.dirname(temp_image_path))
-        os.symlink(image_path, temp_image_path)
-        
-        yield peachtree.qemu_provider(data_dir=data_dir)
