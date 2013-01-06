@@ -7,6 +7,7 @@ import peachtree
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("provider")
     subparsers = parser.add_subparsers()
     
     for command_name, command_builder in _commands.iteritems():
@@ -16,15 +17,20 @@ def main():
         command.create_parser(subparser)
     
     args = parser.parse_args()
-    args.func(args)
+    provider_name = args.provider
+    if provider_name in peachtree.providers:
+        args.func(peachtree.providers[provider_name](), args)
+    else:
+        print "Unrecognised provider:", provider_name
+        exit(1)
 
 
 class RunCommand(object):
     def create_parser(self, subparser):
         subparser.add_argument('image')
     
-    def execute(self, args):
-        machine = peachtree.start_kvm(args.image)
+    def execute(self, provider, args):
+        machine = provider.start(args.image)
         print "identifier", machine.identifier
         ssh_config = machine.ssh_config()
         print "== SSH config =="
@@ -38,8 +44,8 @@ class ListCommand(object):
     def create_parser(self, subparser):
         pass
     
-    def execute(self, args):
-        machines = peachtree.list_running_machines()
+    def execute(self, provider, args):
+        machines = provider.list_running_machines()
         for machine in machines:
             print machine.identifier, machine.image_name
             
@@ -48,15 +54,24 @@ class StopCommand(object):
     def create_parser(self, subparser):
         subparser.add_argument('identifier')
     
-    def execute(self, args):
-        machine = peachtree.find_running_machine(args.identifier)
+    def execute(self, provider, args):
+        machine = provider.find_running_machine(args.identifier)
         machine.destroy()
+        
+            
+class CronCommand(object):
+    def create_parser(self, subparser):
+        pass
+    
+    def execute(self, provider, args):
+        provider.cron()
     
         
 _commands = {
     "run": RunCommand,
     "list-running": ListCommand,
     "stop": StopCommand,
+    "cron": CronCommand,
 }
 
 if __name__ == "__main__":

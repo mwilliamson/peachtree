@@ -15,5 +15,5 @@ setup(
     url='http://github.com/mwilliamson/peachtree',
     scripts=["scripts/peachtree"],
     packages=['peachtree'],
-    install_requires=["spur>=0.1.5", "starboard>=0.1.0"],
+    install_requires=["spur>=0.2.1", "starboard>=0.1.0"],
 )

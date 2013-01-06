@@ -17,7 +17,8 @@ local_shell = spur.LocalShell()
 
 
 class Provider(object):
-    def __init__(self, data_dir=None):
+    def __init__(self, command, data_dir=None):
+        self._command = command
         self._data_dir = data_dir or _default_data_dir()
         self._statuses = Statuses(self._status_dir())
         self._images = Images(self._data_dir)
@@ -51,8 +52,8 @@ class Provider(object):
             for guest_port, host_port
             in forwarded_ports.iteritems()
         ]
-        return local_shell.spawn([
-            "kvm", "-machine", "accel=kvm", "-snapshot",
+        return local_shell.spawn(self._command + [
+            "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
             "-drive", "file={0},if=virtio".format(image_path),
@@ -62,7 +63,9 @@ class Provider(object):
         ])
         
     def _wait_for_ssh(self, process, machine):
-        for i in range(0, 60):
+        timeout = 60
+        start_time = time.time()
+        while time.time() - start_time < timeout:
             try:
                 if not process.is_running():
                     raise process.wait_for_result().to_error()

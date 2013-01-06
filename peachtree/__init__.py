@@ -1,20 +1,15 @@
 from . import qemu
 
 
-provider = qemu.Provider()
+def qemu_provider(*args, **kwargs):
+    return qemu.Provider(["qemu"], *args, **kwargs)
+
+    
+def kvm_provider(*args, **kwargs):
+    return qemu.Provider(["kvm", "-machine", "accel=kvm"], *args, **kwargs)
 
 
-def start_kvm(image_name, public_ports=None, timeout=None):
-    return provider.start(image_name, public_ports, timeout)
-
-
-def find_running_machine(identifier):
-    return provider.find_running_machine(identifier)
-
-
-def list_running_machines():
-    return provider.list_running_machines()
-
-
-def cron():
-    return provider.cron()
+providers = {
+    "qemu": qemu_provider,
+    "kvm": kvm_provider,
+}

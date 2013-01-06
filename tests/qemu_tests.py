@@ -17,9 +17,12 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 _IMAGE_NAME="ubuntu-precise-amd64"
 
+
+qemu_provider = peachtree.kvm_provider()
+
 @istest
 def can_run_commands_on_vm():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+    with qemu_provider.start(_IMAGE_NAME) as vm:
         shell = vm.shell()
         result = shell.run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
@@ -27,7 +30,7 @@ def can_run_commands_on_vm():
 
 @istest
 def can_ensure_that_ports_are_available():
-    with peachtree.start_kvm("ubuntu-precise-amd64", public_ports=[50022]) as vm:
+    with qemu_provider.start(_IMAGE_NAME, public_ports=[50022]) as vm:
         root_shell = vm.root_shell()
         root_shell.run(["sh", "-c", "echo Port 50022 >> /etc/ssh/sshd_config"])
         root_shell.run(["service", "ssh", "restart"])
@@ -41,7 +44,7 @@ def can_ensure_that_ports_are_available():
 
 @istest
 def can_restart_vm():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+    with qemu_provider.start(_IMAGE_NAME) as vm:
         vm.shell().run(["touch", "/tmp/hello"])
         vm.restart()
         
@@ -50,7 +53,7 @@ def can_restart_vm():
         
 @istest
 def can_detect_if_vm_is_running():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+    with qemu_provider.start(_IMAGE_NAME) as vm:
         assert vm.is_running()
         
     assert not vm.is_running()
@@ -58,10 +61,10 @@ def can_detect_if_vm_is_running():
         
 @istest
 def can_find_running_machine_using_identifier_and_then_stop_vm():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as original_vm:
+    with qemu_provider.start(_IMAGE_NAME) as original_vm:
         identifier = original_vm.identifier
         
-        vm = peachtree.find_running_machine(identifier)
+        vm = qemu_provider.find_running_machine(identifier)
         assert vm.is_running()
         vm.destroy()
         assert not vm.is_running()
@@ -69,29 +72,29 @@ def can_find_running_machine_using_identifier_and_then_stop_vm():
 @istest
 def error_is_raised_if_identifier_is_invalid():
     try:
-        peachtree.find_running_machine("wonderful")
+        qemu_provider.find_running_machine("wonderful")
         raise AssertionError("Expected error")
     except RuntimeError as error:
         assert_equals('Could not find running VM with id "wonderful"', error.message)
         
 @istest
 def error_is_raised_if_vm_with_id_is_not_running():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as vm:
+    with qemu_provider.start(_IMAGE_NAME) as vm:
         # Yes, this is a bit evil
         spur.LocalShell().run(["pkill", "-f", vm.identifier])
         
         try:
-            peachtree.find_running_machine(vm.identifier)
+            qemu_provider.find_running_machine(vm.identifier)
             raise AssertionError("Expected error")
         except RuntimeError as error:
             assert error.message.startswith('Could not find running VM with id')
 
 @istest
 def can_run_commands_against_vm_found_using_identifier():
-    with peachtree.start_kvm("ubuntu-precise-amd64") as original_vm:
+    with qemu_provider.start(_IMAGE_NAME) as original_vm:
         identifier = original_vm.identifier
         
-        vm = peachtree.find_running_machine(identifier)
+        vm = qemu_provider.find_running_machine(identifier)
         result = vm.shell().run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
 
@@ -130,14 +133,14 @@ def machines_that_have_stopped_are_not_in_list_of_running_machines():
         
 @istest
 def running_cron_kills_any_running_machines_past_timeout():
-    with peachtree.start_kvm(_IMAGE_NAME, timeout=0) as machine:
-        peachtree.cron()
+    with qemu_provider.start(_IMAGE_NAME, timeout=0) as machine:
+        qemu_provider.cron()
         assert not machine.is_running()
         
 @istest
 def cron_does_not_kill_machines_without_timeout():
-    with peachtree.start_kvm(_IMAGE_NAME) as machine:
-        peachtree.cron()
+    with qemu_provider.start(_IMAGE_NAME) as machine:
+        qemu_provider.cron()
         assert machine.is_running()
 
 
@@ -149,4 +152,4 @@ def provider_with_temp_data_dir():
         os.makedirs(os.path.dirname(temp_image_path))
         os.symlink(image_path, temp_image_path)
         
-        yield peachtree.qemu.Provider(data_dir=data_dir)
+        yield peachtree.kvm_provider(data_dir=data_dir)
