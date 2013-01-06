@@ -64,24 +64,8 @@ class Provider(object):
         message = 'Could not find running VM with id "{0}"'.format(identifier)
         return RuntimeError(message)
     
-    def image_path(self, image_name):
-        return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
-    
-    def _status_dir(self):
-        return os.path.join(self._data_dir, "status")
-    
-    def _default_data_dir(self):
-        xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-        return os.path.join(xdg_data_home, "peachtree/qemu")
-    
     def list_running_machines(self):
         return self._statuses.read_all()
-    
-    def _clean_statuses(self):
-        for status in self._statuses.read_all():
-            machine = self._machine_from_status(status)
-            if not machine.is_running():
-                self._statuses.remove(status.identifier)
                 
     def cron(self):
         self._stop_machines_past_timeout()
@@ -94,6 +78,22 @@ class Provider(object):
                 running_time = time.time() - status.start_time
                 if running_time > status.timeout:
                     self._machine_from_status(status).destroy()
+    
+    def _clean_statuses(self):
+        for status in self._statuses.read_all():
+            machine = self._machine_from_status(status)
+            if not machine.is_running():
+                self._statuses.remove(status.identifier)
+    
+    def image_path(self, image_name):
+        return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
+    
+    def _status_dir(self):
+        return os.path.join(self._data_dir, "status")
+    
+    def _default_data_dir(self):
+        xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        return os.path.join(xdg_data_home, "peachtree/qemu")
 
 
 class Qemu(object):
