@@ -133,6 +133,12 @@ def running_cron_kills_any_running_machines_past_timeout():
     with peachtree.start_kvm(_IMAGE_NAME, timeout=0) as machine:
         peachtree.cron()
         assert not machine.is_running()
+        
+@istest
+def cron_does_not_kill_machines_without_timeout():
+    with peachtree.start_kvm(_IMAGE_NAME) as machine:
+        peachtree.cron()
+        assert machine.is_running()
 
 
 @contextlib.contextmanager
