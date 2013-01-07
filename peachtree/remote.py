@@ -85,46 +85,46 @@ class RemoteApi(object):
             "image-name": image_name,
             "public-ports": ",".join(map(str, public_ports or []))
         }
-        return self._post(
+        return self._action(
             "start",
             data=data,
-            timeout=self._action_timeout
         )
         
     def running_machine(self, identifier):
-        return self._post(
+        return self._info(
             "running-machine",
             data={"identifier": identifier},
-            timeout=self._info_timeout
         )
         
     def is_running(self, identifier):
-        return self._post(
+        return self._info(
             "is-running",
             data={"identifier": identifier},
-            timeout=self._info_timeout
         )["isRunning"]
         
     def public_port(self, identifier, port):
-        return self._post(
+        return self._info(
             "public-port",
             data={"identifier": identifier, "guest-port": port},
-            timeout=self._info_timeout
         )["port"]
         
     def restart(self, identifier):
-        return self._post(
+        return self._action(
             "restart",
             data={"identifier": identifier},
-            timeout=self._action_timeout,
         )
         
     def destroy(self, identifier):
-        return self._post(
+        return self._action(
             "destroy",
             data={"identifier": identifier},
-            timeout=self._action_timeout,
         )
+
+    def _action(self, *args, **kwargs):
+        return self._post(*args, timeout=self._action_timeout, **kwargs)
+        
+    def _info(self, *args, **kwargs):
+        return self._post(*args, timeout=self._info_timeout, **kwargs)
 
     def _post(self, path, data, timeout):
         response = requests.post(
