@@ -23,7 +23,10 @@ class RemoteProvider(object):
 
     def find_running_machine(self, identifier):
         response = self._api.running_machine(identifier)
-        return RemoteMachine(response, self._api)
+        if response is None:
+            return None
+        else:
+            return RemoteMachine(response, self._api)
 
     def _url(self, path):
         return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))

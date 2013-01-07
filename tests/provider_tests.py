@@ -1,6 +1,8 @@
 from nose.tools import assert_equals
+import spur
 
 from .suite_builder import TestSuiteBuilder
+from peachtree import wait
 
 
 suite_builder = TestSuiteBuilder()
@@ -58,6 +60,39 @@ def can_find_running_machine_using_identifier_and_then_stop_machine(provider):
         assert machine.is_running()
         machine.destroy()
         assert not machine.is_running()
+
+
+@test
+def find_running_machine_returns_none_if_there_is_no_such_machine(provider):
+    assert provider.find_running_machine("wonderful") is None
+
+
+@test
+def find_running_machine_returns_none_if_the_machine_has_been_shutdown(provider):
+    with provider.start(_IMAGE_NAME) as machine:
+        def process_is_running():
+            result = spur.LocalShell().run(
+                ["pgrep", "-f", machine.identifier],
+                allow_error=True
+            )
+            return result.return_code == 0
+            
+        assert process_is_running()
+        machine.root_shell().run(["shutdown", "-h", "now"])
+        
+        wait.wait_until_not(process_is_running, timeout=10, wait_time=0.1)
+        
+        assert provider.find_running_machine(machine.identifier) is None
+
+
+@test
+def can_run_commands_against_machine_found_using_identifier(provider):
+    with provider.start(_IMAGE_NAME) as original_machine:
+        identifier = original_machine.identifier
+        
+        machine = provider.find_running_machine(identifier)
+        result = machine.shell().run(["echo", "Hello there"])
+        assert_equals("Hello there\n", result.output)
 
 
 create = suite_builder.create    

@@ -45,37 +45,6 @@ def can_restart_vm():
         
         result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
         assert_equals(1, result.return_code)
-        
-        
-@istest
-def find_running_machine_returns_none_if_there_is_no_such_machine():
-    assert qemu_provider.find_running_machine("wonderful") is None
-        
-@istest
-def find_running_machine_returns_none_if_the_machine_has_been_shutdown():
-    with qemu_provider.start(_IMAGE_NAME) as vm:
-        def process_is_running():
-            result = spur.LocalShell().run(
-                ["pgrep", "-f", vm.identifier],
-                allow_error=True
-            )
-            return result.return_code == 0
-            
-        assert process_is_running()
-        vm.root_shell().run(["shutdown", "-h", "now"])
-        
-        wait.wait_until_not(process_is_running, timeout=10, wait_time=0.1)
-        
-        assert qemu_provider.find_running_machine(vm.identifier) is None
-
-@istest
-def can_run_commands_against_vm_found_using_identifier():
-    with qemu_provider.start(_IMAGE_NAME) as original_vm:
-        identifier = original_vm.identifier
-        
-        vm = qemu_provider.find_running_machine(identifier)
-        result = vm.shell().run(["echo", "Hello there"])
-        assert_equals("Hello there\n", result.output)
 
 @istest
 def list_of_machines_is_empty_if_none_are_running():
