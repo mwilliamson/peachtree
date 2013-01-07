@@ -38,15 +38,6 @@ QemuProviderTests = provider_tests.create(
 
 
 @istest
-def can_restart_vm():
-    with qemu_provider.start(_IMAGE_NAME) as vm:
-        vm.shell().run(["touch", "/tmp/hello"])
-        vm.restart()
-        
-        result = vm.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
-        assert_equals(1, result.return_code)
-
-@istest
 def list_of_machines_is_empty_if_none_are_running():
     with provider_with_temp_data_dir() as provider:
         assert_equals([], provider.list_running_machines())

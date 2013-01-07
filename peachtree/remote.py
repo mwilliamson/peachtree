@@ -60,6 +60,9 @@ class RemoteMachine(object):
     def public_port(self, guest_port):
         return self._api.public_port(self.identifier, guest_port)
     
+    def restart(self):
+        return self._api.restart(self.identifier)
+    
     def destroy(self):
         self._api.destroy(self.identifier)
     
@@ -108,6 +111,13 @@ class RemoteApi(object):
             data={"identifier": identifier, "guest-port": port},
             timeout=self._info_timeout
         )["port"]
+        
+    def restart(self, identifier):
+        return self._post(
+            "restart",
+            data={"identifier": identifier},
+            timeout=self._action_timeout,
+        )
         
     def destroy(self, identifier):
         return self._post(

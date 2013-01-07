@@ -64,6 +64,13 @@ def start_server(port, provider):
         return {"port": public_port}
         
     @view
+    def restart(post):
+        identifier = post.get("identifier")
+        machine = provider.find_running_machine(identifier)
+        machine.restart()
+        return {"status": "OK"}
+        
+    @view
     def destroy(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
@@ -91,6 +98,8 @@ def start_server(port, provider):
     config.add_view(is_running, route_name='is_running')
     config.add_route('public_port', '/public-port')
     config.add_view(public_port, route_name='public_port')
+    config.add_route('restart', '/restart')
+    config.add_view(restart, route_name='restart')
     config.add_route('destroy', '/destroy')
     config.add_view(destroy, route_name='destroy')
     
