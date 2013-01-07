@@ -5,7 +5,6 @@ import functools
 from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
 from pyramid.response import Response
-from pyramid.httpexceptions import HTTPNotFound
 
 from . import sshconfig
 
@@ -19,10 +18,22 @@ def start_server(port, provider):
         def respond(request):
             if request.method == "POST":
                 # TODO: check some credentials
-                result_dict = func(request.POST)
-                return Response(json.dumps(result_dict), content_type="application/json")
+                status_code, result = func(request.POST)
+            else:
+                status_code, result = 405, "POST required"
+            return Response(
+                json.dumps(result),
+                status_code=status_code,
+                content_type="application/json"
+            )
                 
         return respond
+    
+    def success(result):
+        return 200, result
+        
+    def not_found(result):
+        return 404, result
     
     @view
     def start(post):
@@ -37,43 +48,49 @@ def start_server(port, provider):
             public_ports=public_ports,
             timeout=_default_timeout
         )
-        return _describe_machine(machine)
+        return success(_describe_machine(machine))
         
     @view
     def running_machine(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
         if machine is None:
-            return None
+            return not_found(None)
         else:
-            return _describe_machine(machine)
+            return success(_describe_machine(machine))
             
     @view
     def running_machines(post):
         machines = provider.list_running_machines()
-        return map(_describe_machine, machines)
+        return success(map(_describe_machine, machines))
     
     @view
     def is_running(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
         is_running = machine is not None
-        return {"isRunning": is_running}
+        return success({"isRunning": is_running})
     
     @view
     def public_port(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
-        guest_port = int(post.get("guest-port"))
-        public_port = machine.public_port(guest_port)
-        return {"port": public_port}
+        if machine is None:
+            return not_found(None)
+        else:
+            guest_port = int(post.get("guest-port"))
+            public_port = machine.public_port(guest_port)
+            return success({"port": public_port})
         
     @view
     def restart(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
-        machine.restart()
-        return {"status": "OK"}
+        if machine is None:
+            return not_found(None)
+        else:
+            machine.restart()
+            return success({"status": "OK"})
         
     @view
     def destroy(post):
@@ -81,7 +98,7 @@ def start_server(port, provider):
         machine = provider.find_running_machine(identifier)
         if machine is not None:
             machine.destroy()
-        return {"status": "OK"}
+        return success({"status": "OK"})
     
     def _describe_machine(machine):
         ssh_config = machine.ssh_config()
