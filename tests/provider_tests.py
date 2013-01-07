@@ -94,28 +94,7 @@ def can_run_commands_against_machine_found_using_identifier(provider):
         result = machine.shell().run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
         
-# TODO: interesting nosetests error:
-#~ _virtualenv/bin/nosetests tests/remote_tests.py:RemoteTests.can_restart_vm -v
-#~ Traceback (most recent call last):
-  #~ File "_virtualenv/bin/nosetests", line 9, in <module>
-    #~ load_entry_point('nose==1.2.1', 'console_scripts', 'nosetests')()
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/core.py", line 118, in __init__
-    #~ **extra_args)
-  #~ File "/usr/lib/python2.7/unittest/main.py", line 94, in __init__
-    #~ self.parseArgs(argv)
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/core.py", line 169, in parseArgs
-    #~ self.createTests()
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/core.py", line 183, in createTests
-    #~ self.test = self.testLoader.loadTestsFromNames(self.testNames)
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/loader.py", line 453, in loadTestsFromNames
-    #~ return unittest.TestLoader.loadTestsFromNames(self, names, module)
-  #~ File "/usr/lib/python2.7/unittest/loader.py", line 128, in loadTestsFromNames
-    #~ suites = [self.loadTestsFromName(name, module) for name in names]
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/loader.py", line 401, in loadTestsFromName
-    #~ return self.loadTestsFromName(addr.call, module)
-  #~ File "/home/mick/Programming/current/peachtree/_virtualenv/local/lib/python2.7/site-packages/nose/loader.py", line 368, in loadTestsFromName
-    #~ obj = getattr(parent, obj.__name__)
-#~ AttributeError: 'Failure' object has no attribute '__name__'
+        
 @test
 def can_restart_machine(provider):
     with provider.start(_IMAGE_NAME) as machine:
