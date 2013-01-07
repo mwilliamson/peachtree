@@ -13,7 +13,7 @@ setup(
     long_description=read("README"),
     author='Michael Williamson',
     url='http://github.com/mwilliamson/peachtree',
-    scripts=["scripts/peachtree"],
+    scripts=["scripts/peachtree", "scripts/peachtree-server"],
     packages=['peachtree'],
     install_requires=[
         "spur>=0.2.1",
