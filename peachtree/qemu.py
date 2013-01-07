@@ -2,7 +2,6 @@ import os
 import uuid
 import time
 import socket
-import sys
 import json
 import errno
 

@@ -1,15 +1,12 @@
 import os
 import contextlib
 
-from nose.tools import istest, assert_equals
-from hamcrest import assert_that, contains, has_property
-import spur
+from nose.tools import istest
 
 import peachtree
 import peachtree.qemu
 
 from .tempdir import create_temporary_dir
-from peachtree import wait
 from . import provider_tests
 
 import logging

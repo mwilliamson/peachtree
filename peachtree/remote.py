@@ -17,7 +17,6 @@ class RemoteProvider(object):
         self._api = RemoteApi(base_url)
         
     def start(self, image_name, public_ports=None):
-        data = {"image-name": image_name, "public-ports": public_ports}
         response = self._api.start(image_name, public_ports=public_ports)
         return RemoteMachine(response, self._api)
 
@@ -145,7 +144,6 @@ class RemoteApi(object):
         )
         if response.status_code != 200:
             raise RuntimeError("Got response: {0}", response)
-        content_type = response.headers["content-type"]
         return response.json()
         
 
