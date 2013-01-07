@@ -142,7 +142,7 @@ class RemoteApi(object):
             data=data,
             timeout=timeout
         )
-        if response.status_code != 200:
+        if response.status_code not in [200, 404]:
             raise RuntimeError("Got response: {0}", response)
         return response.json()
         
