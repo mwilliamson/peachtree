@@ -27,7 +27,11 @@ class RemoteProvider(object):
             return None
         else:
             return RemoteMachine(response, self._api)
-
+    
+    def list_running_machines(self):
+        machines = self._api.running_machines()
+        return [RemoteMachine(machine, self._api) for machine in machines]
+    
     def _url(self, path):
         return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))
     
@@ -41,6 +45,7 @@ class RemoteProvider(object):
 class RemoteMachine(object):
     def __init__(self, desc, api):
         self.identifier = desc["identifier"]
+        self.image_name = desc["imageName"]
         self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
         self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
         self._api = api
@@ -71,6 +76,9 @@ class RemoteMachine(object):
         
     def __exit__(self, *args):
         self.destroy()
+        
+    def __repr__(self):
+        return "RemoteMachine {0}".format(self.identifier)
 
 
 class RemoteApi(object):
@@ -95,6 +103,9 @@ class RemoteApi(object):
             "running-machine",
             data={"identifier": identifier},
         )
+        
+    def running_machines(self):
+        return self._info("running-machines", data=None)
         
     def is_running(self, identifier):
         return self._info(

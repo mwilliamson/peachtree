@@ -1,4 +1,5 @@
 from nose.tools import assert_equals
+from hamcrest import assert_that, contains, has_property
 import spur
 
 from .suite_builder import TestSuiteBuilder
@@ -104,5 +105,36 @@ def can_restart_machine(provider):
         result = machine.shell().run(["test", "-f", "/tmp/hello"], allow_error=True)
         assert_equals(1, result.return_code)
 
+
+
+@test
+def list_of_machines_is_empty_if_none_are_running(provider):
+    assert_equals([], provider.list_running_machines())
+
+
+@test
+def list_of_machines_include_ids(provider):
+    with provider.start(_IMAGE_NAME) as original_machine:
+        running_machines = provider.list_running_machines()
+        assert_that(
+            running_machines,
+            contains(has_property("identifier", original_machine.identifier))
+        )
+
+@test
+def list_of_machines_include_image_name(provider):
+    with provider.start(_IMAGE_NAME):
+        running_machines = provider.list_running_machines()
+        assert_that(
+            running_machines,
+            contains(has_property("image_name", _IMAGE_NAME))
+        )
+
+@test
+def machines_that_have_stopped_are_not_in_list_of_running_machines(provider):
+    with provider.start(_IMAGE_NAME):
+        pass
+    running_machines = provider.list_running_machines()
+    assert_equals([], running_machines)
 
 create = suite_builder.create    

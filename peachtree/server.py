@@ -47,6 +47,11 @@ def start_server(port, provider):
             return None
         else:
             return _describe_machine(machine)
+            
+    @view
+    def running_machines(post):
+        machines = provider.list_running_machines()
+        return map(_describe_machine, machines)
     
     @view
     def is_running(post):
@@ -84,6 +89,7 @@ def start_server(port, provider):
         
         return {
             "identifier": machine.identifier,
+            "imageName": machine.image_name,
             "sshConfig": sshconfig.to_dict(ssh_config),
             "rootSshConfig": sshconfig.to_dict(root_ssh_config),
         }
@@ -94,6 +100,8 @@ def start_server(port, provider):
     config.add_view(start, route_name='start')
     config.add_route('running_machine', '/running-machine')
     config.add_view(running_machine, route_name='running_machine')
+    config.add_route('running_machines', '/running-machines')
+    config.add_view(running_machines, route_name='running_machines')
     config.add_route('is_running', '/is-running')
     config.add_view(is_running, route_name='is_running')
     config.add_route('public_port', '/public-port')

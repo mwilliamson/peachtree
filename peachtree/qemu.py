@@ -52,7 +52,9 @@ class Provider(object):
         
         process = self._start_process(image_path, forwarded_ports, identifier)
         machine = QemuMachine(
-            self._command, identifier, forwarded_ports, self._statuses)
+            self._command, image_name, identifier,
+            forwarded_ports, self._statuses
+        )
         
         self._wait_for_ssh(process, machine)
         return machine
@@ -115,13 +117,16 @@ class Provider(object):
     def _machine_from_status(self, status):
         return QemuMachine(
             status.command,
+            status.image_name,
             status.identifier,
             forwarded_ports=status.forwarded_ports,
             statuses=self._statuses
         )
     
     def list_running_machines(self):
-        return self._statuses.read_all()
+        statuses = self._statuses.read_all()
+        machines = map(self._machine_from_status, statuses)
+        return [machine for machine in machines if machine is not None]
                 
     def cron(self):
         self._stop_machines_past_timeout()
@@ -237,8 +242,9 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     _password = "password1"
     
-    def __init__(self, command, identifier, forwarded_ports, statuses):
+    def __init__(self, command, image_name, identifier, forwarded_ports, statuses):
         self._command = command
+        self.image_name = image_name
         self.identifier = identifier
         self._forwarded_ports = forwarded_ports
         self._statuses = statuses
