@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 
 import argparse
+import time
 
 import peachtree
 import peachtree.server
+
+
+_CRON_PERIOD = 60
 
 
 def main():
@@ -11,12 +15,15 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
     
-    _start_server(args.port)
+    with _start_server(args.port) as server:
+        while True:
+            server.cron()
+            time.sleep(_CRON_PERIOD)
 
 
 def _start_server(port):
     provider = peachtree.qemu_provider()
-    peachtree.server.start_server(port, provider)
+    return peachtree.server.start_server(port, provider)
 
 
 if __name__ == "__main__":

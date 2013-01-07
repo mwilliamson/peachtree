@@ -134,14 +134,19 @@ def start_server(port, provider):
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.start()
     
-    return Server(server, server_thread)
+    return Server(server, server_thread, provider)
 
 
 class Server(object):
-    def __init__(self, server, thread):
+    def __init__(self, server, thread, provider):
         self._server = server
         self._thread = thread
-        
+        self._provider = provider
+    
+    def cron(self):
+        if hasattr(self._provider, "cron"):
+            self._provider.cron()
+    
     def __enter__(self):
         return self
         
