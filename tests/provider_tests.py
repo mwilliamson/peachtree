@@ -2,11 +2,11 @@ from nose.tools import assert_equals
 from hamcrest import assert_that, contains, has_property
 import spur
 
-from .suite_builder import TestSuiteBuilder
+from nose_test_sets import TestSetBuilder
 from peachtree import wait
 
 
-suite_builder = TestSuiteBuilder()
+suite_builder = TestSetBuilder()
 test = suite_builder.add_test
 
 
