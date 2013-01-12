@@ -31,6 +31,18 @@
             <ul ng-repeat="machine in machines">
               <li>{{machine.identifier}}</li>
             </ul>
+            <p ng-show="!machines.length">No running machines</p>
+          </div>
+          
+          <div ng-controller="AvailableImagesController">
+            <h2>Available images</h2>
+            <table class="table table-bordered table-striped table-shrink">
+              <tr ng-repeat="image in images">
+                <td><input type="button" value="Start" ng-click="start(image)"></td>
+                <td>{{image}}</td>
+              </tr>
+            </table>
+            <p ng-show="!images.length">No available images</p>
           </div>
         </div>
           

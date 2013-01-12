@@ -7,3 +7,13 @@
 .banner h1 {
     font-size: 20px;
 }
+
+h2 {
+    font-size: 20px;
+    line-height: 1.4;
+    margin: 0 0 7px;
+}
+
+.table-shrink {
+    width: auto;
+}
