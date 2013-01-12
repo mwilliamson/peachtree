@@ -37,7 +37,7 @@
               <tr ng-repeat="machine in machines">
                 <td>{{machine.identifier}}</td>
                 <td>{{machine.imageName}}</td>
-                <td>{{machine.startTime}}</td>
+                <td>{{formatTime(machine.startTime)}}</td>
               </tr>
             </table>
             <p ng-show="!machines.length">No running machines</p>

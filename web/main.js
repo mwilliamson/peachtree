@@ -8,6 +8,11 @@ angular.module('peachtree', [])
             .error(function(data, status, headers, config) {
             });
         $scope.machines = []
+        
+        $scope.formatTime = function(time) {
+            var date = new Date(time * 1000);
+            return date.toISOString();
+        };
     })
     
     .controller("AvailableImagesController", function($scope, $http) {
