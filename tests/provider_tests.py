@@ -1,4 +1,7 @@
+import time
+
 from nose.tools import assert_equals
+import hamcrest
 from hamcrest import assert_that, contains, has_property
 import spur
 
@@ -128,6 +131,20 @@ def list_of_machines_include_image_name(provider):
         assert_that(
             running_machines,
             contains(has_property("image_name", _IMAGE_NAME))
+        )
+
+@test
+def list_of_machines_include_start_time(provider):
+    request_time = time.time()
+    with provider.start(_IMAGE_NAME):
+        running_machines = provider.list_running_machines()
+        start_time = hamcrest.all_of(
+            hamcrest.greater_than_or_equal_to(request_time),
+            hamcrest.less_than_or_equal_to(time.time())
+        )
+        assert_that(
+            running_machines,
+            contains(has_property("start_time", start_time))
         )
 
 @test

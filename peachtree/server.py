@@ -141,6 +141,7 @@ def start_server(port, provider):
         return {
             "identifier": machine.identifier,
             "imageName": machine.image_name,
+            "startTime": machine.start_time,
             "sshConfig": sshconfig.to_dict(ssh_config),
             "rootSshConfig": sshconfig.to_dict(root_ssh_config),
         }
