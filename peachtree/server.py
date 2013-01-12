@@ -3,6 +3,7 @@ import json
 import functools
 import os
 import mimetypes
+import re
 
 from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
@@ -20,7 +21,11 @@ def start_server(port, provider):
         def respond(request):
             if request.method == "POST":
                 # TODO: check some credentials
-                status_code, result = func(request.POST)
+                if re.match("^application/json($|;)", request.content_type):
+                    post = request.json_body
+                else:
+                    post = request.POST
+                status_code, result = func(post)
             else:
                 status_code, result = 405, "POST required"
             return Response(
