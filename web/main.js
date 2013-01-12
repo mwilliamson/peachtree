@@ -7,8 +7,7 @@ angular.module('peachtree', [])
             })
             .error(function(data, status, headers, config) {
             });
-        $scope.machines = []
-        
+            
         $scope.stop = function(machine) {
             var arguments = {"identifier": machine.identifier};
             $http({method: "POST", url: "/destroy", data: arguments});
