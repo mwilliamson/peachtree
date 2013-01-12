@@ -15,7 +15,10 @@ def remote_provider(url=None, hostname=None, port=None):
 class RemoteProvider(object):
     def __init__(self, base_url):
         self._api = RemoteApi(base_url)
-        
+    
+    def list_available_images(self):
+        return self._api.available_images()
+    
     def start(self, image_name, public_ports=None):
         response = self._api.start(image_name, public_ports=public_ports)
         return RemoteMachine(response, self._api)
@@ -86,7 +89,10 @@ class RemoteApi(object):
     
     def __init__(self, base_url):
         self._base_url = base_url
-        
+    
+    def available_images(self):
+        return self._info("available-images", data=None)
+    
     def start(self, image_name, public_ports=None):
         data = {
             "image-name": image_name,

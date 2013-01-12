@@ -38,6 +38,10 @@ def start_server(port, provider):
         return 404, result
     
     @view
+    def available_images(post):
+        return success(provider.list_available_images())
+    
+    @view
     def start(post):
         image_name = post.get("image-name")
         public_ports = [
@@ -138,6 +142,8 @@ def start_server(port, provider):
     
     config = Configurator()
     
+    config.add_route('available_images', '/available-images')
+    config.add_view(available_images, route_name='available_images')
     config.add_route('start', '/start')
     config.add_view(start, route_name='start')
     config.add_route('running_machine', '/running-machine')

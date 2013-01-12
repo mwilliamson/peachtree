@@ -39,6 +39,9 @@ class Provider(object):
         self._data_dir = data_dir or _default_data_dir()
         self._statuses = Statuses(self._status_dir())
         self._images = Images(self._data_dir)
+
+    def list_available_images(self):
+        return self._images.list_available_images()
     
     def start(self, image_name, public_ports=None, timeout=None):
         image_path = self._images.image_path(image_name)
@@ -147,14 +150,24 @@ class Provider(object):
     
     def _status_dir(self):
         return os.path.join(self._data_dir, "status")
-
+    
 
 class Images(object):
     def __init__(self, data_dir=None):
-        self._data_dir = data_dir or _default_data_dir()
+        data_dir = data_dir or _default_data_dir()
+        self._images_dir = os.path.join(data_dir, "images")
         
     def image_path(self, image_name):
-        return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
+        return os.path.join(self._images_dir, "{0}.qcow2".format(image_name))
+        
+    def list_available_images(self):
+        all_files = os.listdir(self._images_dir)
+        suffix = ".qcow2"
+        return [
+            filename[:-len(suffix)]
+            for filename in all_files
+            if filename.endswith(suffix)
+        ]
 
     
 def _default_data_dir():

@@ -137,4 +137,10 @@ def machines_that_have_stopped_are_not_in_list_of_running_machines(provider):
     running_machines = provider.list_running_machines()
     assert_equals([], running_machines)
 
+
+@test
+def list_of_available_images_contains_images_that_can_be_started(provider):
+    assert_equals([_IMAGE_NAME], provider.list_available_images())
+    
+
 create = suite_builder.create    
