@@ -9,6 +9,11 @@ angular.module('peachtree', [])
             });
         $scope.machines = []
         
+        $scope.stop = function(machine) {
+            var arguments = {"identifier": machine.identifier};
+            $http({method: "POST", url: "/destroy", data: arguments});
+        };
+        
         $scope.formatTime = function(time) {
             var date = new Date(time * 1000);
             return date.toISOString();

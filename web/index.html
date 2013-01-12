@@ -28,13 +28,15 @@
         <div class="span9">
           <div ng-controller="RunningMachinesController">
             <h2>Running machines</h2>
-            <table class="table table-bordered table-striped">
+            <table class="table table-bordered table-striped table-shrink">
               <tr>
+                <th></th>
                 <th>Identifier</th>
                 <th>Image</th>
                 <th>Start time</th>
               </tr>
               <tr ng-repeat="machine in machines">
+                <td><input type="button" value="Stop" ng-click="stop(machine)"></td>
                 <td>{{machine.identifier}}</td>
                 <td>{{machine.imageName}}</td>
                 <td>{{formatTime(machine.startTime)}}</td>
