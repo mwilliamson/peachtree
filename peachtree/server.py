@@ -1,6 +1,7 @@
 import threading
 import json
 import functools
+import os
 
 from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
@@ -99,6 +100,27 @@ def start_server(port, provider):
         if machine is not None:
             machine.destroy()
         return success({"status": "OK"})
+        
+    def web(request):
+        # TODO: security!
+        web_path = request.matchdict["page"].lstrip("/")
+        if ".." in web_path:
+            web_path = None
+        if not web_path:
+            web_path = "index.html"
+        path = os.path.join(os.path.dirname(__file__), "../web", web_path)
+        if not os.path.exists(path):
+            return Response(
+                "Not found",
+                status_code=404,
+                content_type="text/plain"
+            )
+        else:
+            with open(path) as web_page_file:
+                return Response(
+                    web_page_file.read(),
+                    content_type="text/html"
+                )
     
     def _describe_machine(machine):
         ssh_config = machine.ssh_config()
@@ -127,6 +149,8 @@ def start_server(port, provider):
     config.add_view(restart, route_name='restart')
     config.add_route('destroy', '/destroy')
     config.add_view(destroy, route_name='destroy')
+    config.add_route('web', '/web/{page:.*}')
+    config.add_view(web, route_name='web')
     
     app = config.make_wsgi_app()
     
