@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html>
+<html ng-app>
   <head>
     <title>Peachtree</title>
     <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/2.2.2/css/bootstrap.min.css" type="text/css" />
@@ -15,14 +15,29 @@
     </div>
     <div class="container-fluid">
       <div class="row-fluid">
-        <div class="span2">
+      
+        <div class="span3">
           <nav class="well sidebar-nav">
             <ul class="nav nav-list">
               <li>Thing</li>
             </ul>
           </nav>
         </div>
+        
+        
+        <div class="span9">
+          <div ng-controller="RunningMachinesController">
+            <h2>Running machines</h2>
+            <ul ng-repeat="machine in machines">
+              <li>{{machine.identifier}}</li>
+            </ul>
+          </div>
+        </div>
+          
       </div>
     </div>
+    
+    <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular.min.js"></script>
+    <script src="main.js"></script>
   </body>
 </html>
