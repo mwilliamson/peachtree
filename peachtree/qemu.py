@@ -148,20 +148,22 @@ class Provider(object):
     
 
 class Images(object):
+    _suffix = ".qcow2"
+    
     def __init__(self, data_dir=None):
         data_dir = data_dir or _default_data_dir()
         self._images_dir = os.path.join(data_dir, "images")
         
     def image_path(self, image_name):
-        return os.path.join(self._images_dir, "{0}.qcow2".format(image_name))
+        filename = "{0}{1}".format(image_name, self._suffix)
+        return os.path.join(self._images_dir, filename)
         
     def list_available_images(self):
         all_files = os.listdir(self._images_dir)
-        suffix = ".qcow2"
         return [
-            filename[:-len(suffix)]
+            filename[:-len(self._suffix)]
             for filename in all_files
-            if filename.endswith(suffix)
+            if filename.endswith(self._suffix)
         ]
 
     
