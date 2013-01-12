@@ -2,6 +2,7 @@ import threading
 import json
 import functools
 import os
+import mimetypes
 
 from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
@@ -116,10 +117,12 @@ def start_server(port, provider):
                 content_type="text/plain"
             )
         else:
+            default_file_type = (None, None)
+            content_type, encoding = mimetypes.guess_type(path) or default_file_type
             with open(path) as web_page_file:
                 return Response(
                     web_page_file.read(),
-                    content_type="text/html"
+                    content_type=content_type
                 )
     
     def _describe_machine(machine):
