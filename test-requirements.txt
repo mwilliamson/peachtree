@@ -1,3 +1,4 @@
 nose>=1.2.1,<2
 PyHamcrest>=1.7.1,<2
 nose_test_sets>=0.1,<0.2
+selenium>=2.28,<3
