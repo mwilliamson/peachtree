@@ -26,3 +26,12 @@ h2 {
 .table td.inner-table th:first-child {
     border-left: none;
 }
+
+.table td.inner-table table {
+    margin: 0;
+    padding: 0;
+}
+
+.table td.inner-table tbody {
+    border-top: 1px solid #DDDDDD;
+}
