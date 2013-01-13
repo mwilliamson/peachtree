@@ -66,9 +66,27 @@
                   <th>SSH config</th>
                   <td>
 <pre data-peachtree="ssh-config">HostName {{selectedMachine.sshConfig.hostname}}
-Port {{selectedMachine.sshConfig.port}}
-User {{selectedMachine.sshConfig.user}}
-Password {{selectedMachine.sshConfig.password}}</pre></td>
+Port {{selectedMachine.sshConfig.port}}</pre></td>
+                </tr>
+                <tr>
+                  <th>Users</th>
+                  <td class="inner-table">
+                    <table data-peachtree="users" class="table">
+                      <thead>
+                        <tr><th>User</th><th>Password</th></tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td data-peachtree="username">{{selectedMachine.sshConfig.user}}</td>
+                          <td data-peachtree="password">{{selectedMachine.sshConfig.password}}</td>
+                        </tr>
+                        <tr>
+                          <td data-peachtree="username">{{selectedMachine.rootSshConfig.user}}</td>
+                          <td data-peachtree="password">{{selectedMachine.rootSshConfig.password}}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
                 </tr>
               </table>
             </div>

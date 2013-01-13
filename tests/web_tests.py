@@ -48,7 +48,11 @@ class WebProvider(object):
     def start(self, image_name):
         self._start_image(image_name)
         running_machine = self._view_running_machine()
-        return WebMachine(running_machine.ssh_config())
+        return WebMachine(
+            # TODO: don't hard-code qemu-user
+            running_machine.ssh_config("qemu-user"),
+            running_machine.ssh_config("root")
+        )
     
     def _start_image(self, image_name):
         self._dashboard_page.open()
@@ -107,17 +111,36 @@ class DetailedMachineView(object):
         selector = "*[data-peachtree='view-machine']"
         self._element = driver.find_element_by_css_selector(selector)
         
-    def ssh_config(self):
+    def ssh_config(self, username):
+        hostname, port = self._read_ssh_config()
+        users = self._read_users()
+        return SshConfig(
+            hostname=hostname, port=port,
+            user=username, password=users[username]
+        )
+    
+    def _read_ssh_config(self):
         selector = "*[data-peachtree='ssh-config']"
         ssh_config_text = self._element.find_element_by_css_selector(selector).text
-        return WebMachine(self._read_ssh_config_text(ssh_config_text))
+        return self._read_ssh_config_text(ssh_config_text)
     
     def _read_ssh_config_text(self, text):
         lines = text.split("\n")
-        properties = [line.strip().split(" ", 1) for line in lines]
-        kwargs = dict((key.lower(), value) for key, value in properties)
-        kwargs["port"] = int(kwargs["port"])
-        return SshConfig(**kwargs)
+        properties = dict(line.strip().split(" ", 1) for line in lines)
+        return properties["HostName"], int(properties["Port"])
+
+    def _read_users(self):
+        selector = "*[data-peachtree='users'] tbody tr"
+        rows = self._element.find_elements_by_css_selector(selector)
+        username_selector = "*[data-peachtree='username']"
+        password_selector = "*[data-peachtree='password']"
+        return dict(
+            (
+                row.find_element_by_css_selector(username_selector).text,
+                row.find_element_by_css_selector(password_selector).text,
+            )
+            for row in rows
+        )
 
 
 class AvailableImage(object):
@@ -134,11 +157,15 @@ class AvailableImage(object):
 
 
 class WebMachine(object):
-    def __init__(self, ssh_config):
+    def __init__(self, ssh_config, root_ssh_config):
         self._ssh_config = ssh_config
+        self._root_ssh_config = root_ssh_config
     
     def shell(self):
         return self._ssh_config.shell()
+        
+    def root_shell(self):
+        return self._root_ssh_config.shell()
     
     def __enter__(self):
         return self

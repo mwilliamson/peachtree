@@ -17,3 +17,12 @@ h2 {
 .table-shrink {
     width: auto;
 }
+
+.table td.inner-table {
+    padding: 0;
+}
+
+.table td.inner-table td:first-child,
+.table td.inner-table th:first-child {
+    border-left: none;
+}
