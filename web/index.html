@@ -13,47 +13,65 @@
       </div>
     </div>
     </div>
-    <div class="container-fluid">
+    <div class="container-fluid" ng-controller="DashboardController">
       <div class="row-fluid">
       
-        <div class="span3">
-          <nav class="well sidebar-nav">
-            <ul class="nav nav-list">
-              <li>Thing</li>
-            </ul>
-          </nav>
-        </div>
-        
-        
-        <div class="span9">
+        <div class="span6">
           <div ng-controller="RunningMachinesController">
             <h2>Running machines</h2>
-            <table class="table table-bordered table-striped table-shrink">
-              <tr>
-                <th></th>
-                <th>Identifier</th>
-                <th>Image</th>
-                <th>Start time</th>
-              </tr>
-              <tr ng-repeat="machine in machines">
-                <td><input type="button" value="Stop" ng-click="stop(machine)"></td>
-                <td>{{machine.identifier}}</td>
-                <td>{{machine.imageName}}</td>
-                <td>{{formatTime(machine.startTime)}}</td>
-              </tr>
+            <table data-peachtree="running-machines" class="table table-bordered table-striped table-shrink">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th></th>
+                  <th>Identifier</th>
+                  <th>Image</th>
+                  <th>Start time</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr ng-repeat="machine in machines">
+                  <td><input type="button" value="Stop" ng-click="stop(machine)"></td>
+                  <td><input type="button" value="View" ng-click="view(machine)"></td>
+                  <td>{{machine.identifier}}</td>
+                  <td>{{machine.imageName}}</td>
+                  <td>{{formatTime(machine.startTime)}}</td>
+                </tr>
+              </tbody>
             </table>
             <p ng-show="!machines.length">No running machines</p>
           </div>
           
           <div ng-controller="AvailableImagesController">
             <h2>Available images</h2>
-            <table class="available-images table table-bordered table-striped table-shrink">
+            <table data-peachtree="available-images" class="table table-bordered table-striped table-shrink">
               <tr ng-repeat="image in images">
                 <td><input type="button" value="Start" ng-click="start(image)"></td>
-                <td>{{image}}</td>
+                <td data-peachtree="image-name">{{image}}</td>
               </tr>
             </table>
             <p ng-show="!images.length">No available images</p>
+          </div>
+        </div>
+        
+        <div class="span6">
+          <div ng-controller="MachineController">
+            <div ng-show="selectedMachine">
+              <h2>View machine</h2>
+              <table class="table table-bordered table-shrink" data-peachtree="view-machine">
+                <tr><th>Identifier</th><td>{{selectedMachine.identifier}}</td></tr>
+                <tr><th>Image</th><td>{{selectedMachine.imageName}}</td></tr>
+                <tr><th>Start time</th><td>{{formatTime(selectedMachine.startTime)}}</td></tr>
+                <tr>
+                  <th>SSH config</th>
+                  <td>
+<pre data-peachtree="ssh-config">HostName {{selectedMachine.sshConfig.hostname}}
+Port {{selectedMachine.sshConfig.port}}
+User {{selectedMachine.sshConfig.user}}
+Password {{selectedMachine.sshConfig.password}}</pre></td>
+                </tr>
+              </table>
+            </div>
           </div>
         </div>
           
