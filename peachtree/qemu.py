@@ -10,7 +10,8 @@ import spur
 import starboard
 
 from . import wait
-from .sshconfig import SshConfig
+from .users import User
+from .machines import MachineWrapper
 
 local_shell = spur.LocalShell()
 
@@ -50,7 +51,7 @@ class Provider(object):
             self._command, identifier, image_name, forwarded_ports, timeout)
         
         process = self._start_process(image_path, forwarded_ports, identifier)
-        machine = QemuMachine(status, self._statuses)
+        machine = _create_machine(status, self._statuses)
         
         self._wait_for_ssh(process, machine)
         return machine
@@ -111,7 +112,7 @@ class Provider(object):
             return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
-        return QemuMachine(status, self._statuses)
+        return _create_machine(status, self._statuses)
     
     def list_running_machines(self):
         statuses = self._statuses.read_all()
@@ -229,15 +230,16 @@ class Statuses(object):
         return os.path.join(self._status_dir, identifier)
 
 
+def _create_machine(*args, **kwargs):
+    machine = QemuMachine(*args, **kwargs)
+    return MachineWrapper(machine)
+
+
 class QemuMachine(object):
     _password = "password1"
-    _unprivileged_username = "qemu-user"
-    _root_username = "root"
-    _users = {
-        _unprivileged_username: _password,
-        _root_username: _password,
-    }
-    
+    unprivileged_user = User("qemu-user", _password)
+    root_user = User("root", _password)
+    users = [unprivileged_user, root_user]
     
     def __init__(self, status, statuses):
         self._command = status.command
@@ -274,54 +276,12 @@ class QemuMachine(object):
             return process_ids[0]
         else:
             return None
-    
-    def restart(self):
-        tmp_file = os.path.join("/tmp/", str(uuid.uuid4()))
-        root_shell = self.root_shell()
-        root_shell.run(["touch", tmp_file])
-        root_shell.spawn(["reboot"])
-        for i in range(0, 20):
-            try:
-                # TODO: automatic reconnection of shell
-                result = self.root_shell().run(
-                    ["test", "-f", tmp_file],
-                    allow_error=True
-                )
-                if result.return_code == 1:
-                    return
-            except (socket.error, paramiko.SSHException, EOFError):
-                pass
-            time.sleep(1)
-        raise RuntimeError("Failed to restart VM")
-    
-    def root_shell(self):
-        return self.shell(self._root_username)
-        
-    def shell(self, user=None):
-        config = self.ssh_config(user)
-        return config.shell()
-        
-    def ssh_config(self, user=None):
-        if user is None:
-            user = self._unprivileged_username
-        return SshConfig(
-            hostname=self.hostname(),
-            port=self.public_port(_GUEST_SSH_PORT),
-            user=user,
-            password=self._password
-        )
         
     def public_port(self, guest_port):
         return self._forwarded_ports.get(guest_port, None)
         
     def hostname(self):
         return starboard.find_local_hostname()
-        
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        self.destroy()
     
 
 _GUEST_SSH_PORT = 22
