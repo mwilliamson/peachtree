@@ -26,7 +26,12 @@ def provider_with_temp_data_dir():
         os.makedirs(os.path.dirname(temp_image_path))
         os.symlink(image_path, temp_image_path)
         
-        yield peachtree.qemu_provider(data_dir=data_dir)
+        provider = peachtree.qemu_provider(data_dir=data_dir)
+        try:
+            yield provider
+        finally:
+            for machine in provider.list_running_machines():
+                machine.destroy()
 
 
 QemuProviderTests = provider_tests.create(
