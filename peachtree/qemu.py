@@ -237,7 +237,6 @@ class QemuMachine(object):
         _unprivileged_username: _password,
         _root_username: _password,
     }
-    hostname = "127.0.0.1"
     
     
     def __init__(self, status, statuses):
@@ -306,7 +305,7 @@ class QemuMachine(object):
         if user is None:
             user = self._unprivileged_username
         return SshConfig(
-            hostname="127.0.0.1",
+            hostname=self.hostname(),
             port=self.public_port(_GUEST_SSH_PORT),
             user=user,
             password=self._password
@@ -314,6 +313,9 @@ class QemuMachine(object):
         
     def public_port(self, guest_port):
         return self._forwarded_ports.get(guest_port, None)
+        
+    def hostname(self):
+        return starboard.find_local_hostname()
         
     def __enter__(self):
         return self

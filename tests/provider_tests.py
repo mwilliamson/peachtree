@@ -1,4 +1,5 @@
 from nose.tools import assert_equals
+import hamcrest
 from hamcrest import assert_that, contains, has_property
 import spur
 
@@ -37,6 +38,14 @@ def machine_is_not_running_after_context_manager_for_machine_exits(provider):
     assert not machine.is_running()
 
 
+@test
+def hostname_is_not_local(provider):
+    with provider.start(_IMAGE_NAME) as machine:
+        hostname = machine.hostname()
+        assert_that(hostname, hamcrest.is_not(hamcrest.equal_to("localhost")))
+        assert_that(hostname, hamcrest.is_not(hamcrest.starts_with("127")))
+        
+        
 @test
 def can_ensure_that_ports_are_available(provider):
     with provider.start(_IMAGE_NAME, public_ports=[50022]) as vm:

@@ -45,9 +45,13 @@ class RemoteMachine(object):
     def __init__(self, desc, api):
         self.identifier = desc["identifier"]
         self.image_name = desc["imageName"]
+        self._hostname = desc["hostname"]
         self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
         self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
         self._api = api
+    
+    def hostname(self):
+        return self._hostname
     
     def ssh_config(self):
         return self._ssh_config
