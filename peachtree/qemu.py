@@ -46,14 +46,11 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._statuses.write(
+        status = self._statuses.write(
             self._command, identifier, image_name, forwarded_ports, timeout)
         
         process = self._start_process(image_path, forwarded_ports, identifier)
-        machine = QemuMachine(
-            self._command, image_name, identifier,
-            forwarded_ports, self._statuses
-        )
+        machine = QemuMachine(status, self._statuses)
         
         self._wait_for_ssh(process, machine)
         return machine
@@ -114,13 +111,7 @@ class Provider(object):
             return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
-        return QemuMachine(
-            status.command,
-            status.image_name,
-            status.identifier,
-            forwarded_ports=status.forwarded_ports,
-            statuses=self._statuses
-        )
+        return QemuMachine(status, self._statuses)
     
     def list_running_machines(self):
         statuses = self._statuses.read_all()
@@ -211,6 +202,8 @@ class Statuses(object):
             
         with open(status_path, "w") as status_file:
             json.dump(status, status_file)
+            
+        return MachineStatus(identifier, status)
     
     def read(self, identifier):
         status_file_path = self._status_path(identifier)
@@ -247,11 +240,11 @@ class QemuMachine(object):
     hostname = "127.0.0.1"
     
     
-    def __init__(self, command, image_name, identifier, forwarded_ports, statuses):
-        self._command = command
-        self.image_name = image_name
-        self.identifier = identifier
-        self._forwarded_ports = forwarded_ports
+    def __init__(self, status, statuses):
+        self._command = status.command
+        self.image_name = status.image_name
+        self.identifier = status.identifier
+        self._forwarded_ports = status.forwarded_ports
         self._statuses = statuses
     
     def is_running(self):
