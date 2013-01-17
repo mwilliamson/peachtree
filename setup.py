@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name='peachtree',
-    version='0.2.0',
+    version='0.3.0',
     description='Library for starting and interacting with qemu/kvm',
     long_description=read("README"),
     author='Michael Williamson',
