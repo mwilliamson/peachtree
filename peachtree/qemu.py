@@ -237,9 +237,15 @@ class Statuses(object):
 
 
 class QemuMachine(object):
-    unprivileged_username = "qemu-user"
-    hostname = "127.0.0.1"
     _password = "password1"
+    _unprivileged_username = "qemu-user"
+    _root_username = "root"
+    _users = {
+        _unprivileged_username: _password,
+        _root_username: _password,
+    }
+    hostname = "127.0.0.1"
+    
     
     def __init__(self, command, image_name, identifier, forwarded_ports, statuses):
         self._command = command
@@ -297,7 +303,7 @@ class QemuMachine(object):
         raise RuntimeError("Failed to restart VM")
     
     def root_shell(self):
-        return self.shell("root")
+        return self.shell(self._root_username)
         
     def shell(self, user=None):
         config = self.ssh_config(user)
@@ -305,7 +311,7 @@ class QemuMachine(object):
         
     def ssh_config(self, user=None):
         if user is None:
-            user = self.unprivileged_username
+            user = self._unprivileged_username
         return SshConfig(
             hostname="127.0.0.1",
             port=self.public_port(_GUEST_SSH_PORT),
