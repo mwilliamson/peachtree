@@ -71,12 +71,6 @@ class MachineWrapper(object):
                 pass
             time.sleep(1)
         raise RuntimeError("Failed to restart VM")
-        
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        self.destroy()
 
 # TODO: don't assume SSH port of 22
 _GUEST_SSH_PORT = 22
