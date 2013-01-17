@@ -16,7 +16,7 @@ setup(
     scripts=["scripts/peachtree", "scripts/peachtree-server"],
     packages=['peachtree'],
     install_requires=[
-        "spur>=0.2.1",
+        "spur>=0.2.2",
         "starboard>=0.1.0",
         "requests>=1.0,<2",
         "pyramid>=1.4b3,<1.5"

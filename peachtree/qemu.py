@@ -1,12 +1,11 @@
 import os
 import uuid
 import time
-import socket
 import json
 import errno
 
-import paramiko
 import spur
+import spur.ssh
 import starboard
 
 from . import wait
@@ -90,7 +89,7 @@ class Provider(object):
             
         wait.wait_until_successful(
             attempt_ssh_command,
-            errors=(socket.error, paramiko.SSHException),
+            errors=(spur.ssh.ConnectionError, ),
             timeout=60,
             wait_time=1
         )

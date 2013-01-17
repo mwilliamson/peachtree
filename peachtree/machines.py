@@ -1,9 +1,8 @@
 import os
 import uuid
-import socket
 import time
 
-import paramiko
+import spur.ssh
 
 from .sshconfig import SshConfig
 
@@ -66,8 +65,7 @@ class MachineWrapper(object):
                 )
                 if result.return_code == 1:
                     return
-            # TODO: push these errors into spur
-            except (socket.error, paramiko.SSHException, EOFError):
+            except spur.ssh.ConnectionError:
                 pass
             time.sleep(1)
         raise RuntimeError("Failed to restart VM")
