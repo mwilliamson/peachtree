@@ -21,8 +21,10 @@ def qemu_provider(command=None, accel_arg=None, *args, **kwargs):
     
     if command is None:
         command = _find_qemu_command()
-        
-    return Provider(command, accel_arg, *args, **kwargs)
+    
+    networking = UserNetworking()
+    
+    return Provider(command, accel_arg, networking, *args, **kwargs)
 
 
 def _find_qemu_command():
@@ -33,9 +35,10 @@ def _find_qemu_command():
 
 
 class Provider(object):
-    def __init__(self, command, accel_arg, data_dir=None):
+    def __init__(self, command, accel_arg, networking, data_dir=None):
         self._command = command
         self._accel_arg = accel_arg
+        self._networking = networking
         self._data_dir = data_dir or _default_data_dir()
         self._statuses = Statuses(self._status_dir())
         self._images = Images(self._data_dir)
@@ -68,21 +71,14 @@ class Provider(object):
         return starboard.find_local_free_tcp_port()
         
     def _start_process(self, image_path, forwarded_ports, identifier):
-        kvm_forward_ports = [
-            "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
-            for guest_port, host_port
-            in forwarded_ports.iteritems()
-        ]
         return local_shell.spawn([
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
             "-drive", "file={0},if=virtio".format(image_path),
-            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
-            "-device", "virtio-net-pci,netdev=guest0",
             "-uuid", identifier,
-        ])
+        ] + self._networking.qemu_args(forwarded_ports))
         
     def _wait_for_ssh(self, process, machine):
         def attempt_ssh_command():
@@ -287,3 +283,15 @@ class QemuMachine(object):
     
 
 _GUEST_SSH_PORT = 22
+
+class UserNetworking(object):
+    def qemu_args(self, forwarded_ports):
+        kvm_forward_ports = [
+            "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
+            for guest_port, host_port
+            in forwarded_ports.iteritems()
+        ]
+        return [
+            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
+            "-device", "virtio-net-pci,netdev=guest0",
+        ]
