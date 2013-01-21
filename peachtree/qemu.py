@@ -51,9 +51,12 @@ class Provider(object):
         
         process = self._start_process(image_path, forwarded_ports, identifier)
         machine = _create_machine(status, self._statuses)
-        
-        self._wait_for_ssh(process, machine)
-        return machine
+        try:
+            self._wait_for_ssh(process, machine)
+            return machine
+        except:
+            machine.destroy()
+            raise
         
     def _generate_forwarded_ports(self, public_ports):
         return dict(
