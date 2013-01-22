@@ -16,14 +16,15 @@ from .machines import MachineWrapper
 local_shell = spur.LocalShell()
 
 
-def qemu_provider(command=None, accel_arg=None, *args, **kwargs):
+def qemu_provider(command=None, accel_arg=None, networking=None, *args, **kwargs):
     if accel_arg is None:
         accel_arg = "kvm:tcg"
     
     if command is None:
         command = _find_qemu_command()
     
-    networking = UserNetworking()
+    if networking is None:
+        networking = UserNetworking()
     
     return Provider(command, accel_arg, networking, *args, **kwargs)
 
@@ -75,13 +76,16 @@ class Provider(object):
         return starboard.find_local_free_tcp_port()
         
     def _start_process(self, image_path, forwarded_ports):
+        netdev_arg = self._networking.qemu_netdev_arg(forwarded_ports)
         return local_shell.spawn([
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
             "-drive", "file={0},if=virtio".format(image_path),
-        ] + self._networking.qemu_args(forwarded_ports), store_pid=True)
+            "-netdev", "{0},id=guest0".format(netdev_arg),
+            "-device", "virtio-net-pci,netdev=guest0",
+        ], store_pid=True)
         
     def _wait_for_ssh(self, process, machine):
         def attempt_ssh_command():
@@ -294,14 +298,12 @@ def _process_is_running(pid):
 
 _GUEST_SSH_PORT = 22
 
+
 class UserNetworking(object):
-    def qemu_args(self, forwarded_ports):
+    def qemu_netdev_arg(self, forwarded_ports):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
             in forwarded_ports.iteritems()
         ]
-        return [
-            "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
-            "-device", "virtio-net-pci,netdev=guest0",
-        ]
+        return "user,id=guest0," + ",".join(kvm_forward_ports)
