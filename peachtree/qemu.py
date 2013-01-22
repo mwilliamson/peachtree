@@ -16,7 +16,7 @@ from .machines import MachineWrapper
 local_shell = spur.LocalShell()
 
 
-def qemu_provider(command=None, accel_arg=None, networking=None, *args, **kwargs):
+def qemu_provider(command=None, accel_arg=None, networking=None, data_dir=None):
     if accel_arg is None:
         accel_arg = "kvm:tcg"
     
@@ -25,8 +25,12 @@ def qemu_provider(command=None, accel_arg=None, networking=None, *args, **kwargs
     
     if networking is None:
         networking = UserNetworking()
-    
-    return Provider(command, accel_arg, networking, *args, **kwargs)
+        
+    data_dir = data_dir or _default_data_dir()
+    images = Images(data_dir)
+    invoker = QemuInvoker(command, accel_arg, networking, images)
+    statuses = Statuses(os.path.join(data_dir, "status"))
+    return Provider(invoker, statuses)
 
 
 def _find_qemu_command():
@@ -37,22 +41,17 @@ def _find_qemu_command():
 
 
 class Provider(object):
-    def __init__(self, command, accel_arg, networking, data_dir=None):
-        self._command = command
-        self._accel_arg = accel_arg
-        self._networking = networking
-        self._data_dir = data_dir or _default_data_dir()
-        self._statuses = Statuses(self._status_dir())
-        self._images = Images(self._data_dir)
+    def __init__(self, invoker, statuses):
+        self._invoker = invoker
+        self._statuses = statuses
     
     def start(self, image_name, public_ports=None, timeout=None):
-        image_path = self._images.image_path(image_name)
         identifier = str(uuid.uuid4())
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
         self._statuses.write(identifier, image_name, forwarded_ports, timeout)
-        process = self._start_process(image_path, forwarded_ports)
+        process = self._invoker.start_process(image_name, forwarded_ports)
         process_start_time = _process_start_time_from_pid(process.pid)
         self._statuses.update(identifier, process.pid, process_start_time)
         
@@ -74,20 +73,6 @@ class Provider(object):
         
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
-        
-    def _start_process(self, image_path, forwarded_ports):
-        # TODO: kill processes started by network
-        network = self._networking.start(forwarded_ports)
-        netdev_arg = network.qemu_netdev_arg()
-        return local_shell.spawn([
-            self._command, "-machine", "accel={0}".format(self._accel_arg),
-            "-snapshot",
-            "-nographic", "-serial", "none",
-            "-m", "512",
-            "-drive", "file={0},if=virtio".format(image_path),
-            "-netdev", "{0},id=guest0".format(netdev_arg),
-            "-device", "virtio-net-pci,netdev=guest0",
-        ], store_pid=True)
         
     def _wait_for_ssh(self, process, machine):
         def attempt_ssh_command():
@@ -143,9 +128,29 @@ class Provider(object):
             machine = self._machine_from_status(status)
             if not machine.is_running():
                 self._statuses.remove(status.identifier)
-    
-    def _status_dir(self):
-        return os.path.join(self._data_dir, "status")
+
+
+class QemuInvoker(object):
+    def __init__(self, command, accel_arg, networking, images):
+        self._command = command
+        self._accel_arg = accel_arg
+        self._networking = networking
+        self._images = images
+        
+    def start_process(self, image_name, forwarded_ports):
+        image_path = self._images.image_path(image_name)
+        # TODO: kill processes started by network
+        network = self._networking.start(forwarded_ports)
+        netdev_arg = network.qemu_netdev_arg()
+        return local_shell.spawn([
+            self._command, "-machine", "accel={0}".format(self._accel_arg),
+            "-snapshot",
+            "-nographic", "-serial", "none",
+            "-m", "512",
+            "-drive", "file={0},if=virtio".format(image_path),
+            "-netdev", "{0},id=guest0".format(netdev_arg),
+            "-device", "virtio-net-pci,netdev=guest0",
+        ], store_pid=True)
 
 
 class Images(object):
