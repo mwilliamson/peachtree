@@ -80,17 +80,10 @@ def find_running_machine_returns_none_if_there_is_no_such_machine(provider):
 @test
 def find_running_machine_returns_none_if_the_machine_has_been_shutdown(provider):
     with provider.start(_IMAGE_NAME) as machine:
-        def process_is_running():
-            result = spur.LocalShell().run(
-                ["pgrep", "-f", machine.identifier],
-                allow_error=True
-            )
-            return result.return_code == 0
-            
-        assert process_is_running()
+        assert machine.is_running()
         machine.root_shell().run(["shutdown", "-h", "now"])
         
-        wait.wait_until_not(process_is_running, timeout=10, wait_time=0.1)
+        wait.wait_until_not(machine.is_running, timeout=10, wait_time=0.1)
         
         assert provider.find_running_machine(machine.identifier) is None
 
