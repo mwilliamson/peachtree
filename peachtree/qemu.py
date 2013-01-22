@@ -76,7 +76,9 @@ class Provider(object):
         return starboard.find_local_free_tcp_port()
         
     def _start_process(self, image_path, forwarded_ports):
-        netdev_arg = self._networking.qemu_netdev_arg(forwarded_ports)
+        # TODO: kill processes started by network
+        network = self._networking.start(forwarded_ports)
+        netdev_arg = network.qemu_netdev_arg()
         return local_shell.spawn([
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
@@ -160,6 +162,7 @@ def _default_data_dir():
     
 
 class MachineStatus(object):
+    # TODO: find a better way of storing details for machines
     _fields = [
         ("imageName", "image_name"),
         ("forwardedPorts", "forwarded_ports"),
@@ -172,7 +175,7 @@ class MachineStatus(object):
     def __init__(self, identifier, json):
         self.identifier = identifier
         for json_name, py_name in self._fields:
-            setattr(self, py_name, json[json_name])
+            setattr(self, py_name, json.get(json_name, None))
         
         self.forwarded_ports = dict(
             (int(guest_port), host_port)
@@ -265,7 +268,7 @@ class QemuMachine(object):
         self._statuses = statuses
     
     def is_running(self):
-        if not _process_is_running(self._pid):
+        if self._pid is None or not _process_is_running(self._pid):
             return False
         return _process_start_time_from_pid(self._pid) == self._process_start_time
     
@@ -300,10 +303,24 @@ _GUEST_SSH_PORT = 22
 
 
 class UserNetworking(object):
-    def qemu_netdev_arg(self, forwarded_ports):
+    def start(self, forwarded_ports):
+        return UserNetwork(forwarded_ports)
+
+
+class UserNetwork(object):
+    def __init__(self, forwarded_ports):
+        self._forwarded_ports = forwarded_ports
+    
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, *args):
+        pass
+    
+    def qemu_netdev_arg(self):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
-            in forwarded_ports.iteritems()
+            in self._forwarded_ports.iteritems()
         ]
         return "user,id=guest0," + ",".join(kvm_forward_ports)

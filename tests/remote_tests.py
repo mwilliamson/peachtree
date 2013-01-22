@@ -5,11 +5,10 @@ import starboard
 import peachtree
 import peachtree.server
 from . import provider_tests
-from .qemu_tests import provider_with_temp_data_dir as qemu_provider
+from .qemu_tests import provider_with_user_networking as qemu_provider
 
 import logging
 logging.getLogger("paramiko").setLevel(logging.WARNING)
-
 
 
 @contextlib.contextmanager
