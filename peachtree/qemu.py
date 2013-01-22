@@ -4,6 +4,7 @@ import time
 import json
 import errno
 
+import psutil
 import spur
 import spur.ssh
 import starboard
@@ -46,11 +47,14 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        status = self._statuses.write(
-            self._command, identifier, image_name, forwarded_ports, timeout)
+        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
+        process = self._start_process(image_path, forwarded_ports)
+        process_start_time = _process_start_time_from_pid(process.pid)
+        self._statuses.update(identifier, process.pid, process_start_time)
         
-        process = self._start_process(image_path, forwarded_ports, identifier)
+        status = self._statuses.read(identifier)
         machine = _create_machine(status, self._statuses)
+        
         try:
             self._wait_for_ssh(process, machine)
             return machine
@@ -67,7 +71,7 @@ class Provider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
         
-    def _start_process(self, image_path, forwarded_ports, identifier):
+    def _start_process(self, image_path, forwarded_ports):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
@@ -81,8 +85,7 @@ class Provider(object):
             "-drive", "file={0},if=virtio".format(image_path),
             "-netdev", "user,id=guest0," + ",".join(kvm_forward_ports),
             "-device", "virtio-net-pci,netdev=guest0",
-            "-uuid", identifier,
-        ])
+        ], store_pid=True)
         
     def _wait_for_ssh(self, process, machine):
         def attempt_ssh_command():
@@ -158,11 +161,12 @@ def _default_data_dir():
 
 class MachineStatus(object):
     _fields = [
-        ("command", "command"),
         ("imageName", "image_name"),
         ("forwardedPorts", "forwarded_ports"),
         ("startTime", "start_time"),
         ("timeout", "timeout"),
+        ("pid", "pid"),
+        ("processStartTime", "process_start_time"),
     ]
     
     def __init__(self, identifier, json):
@@ -189,30 +193,25 @@ class Statuses(object):
             if error.errno != errno.ENOENT:
                 raise
     
-    def write(self, command, identifier, image_name, forwarded_ports, timeout):
+    def write(self, identifier, image_name, forwarded_ports, timeout):
         start_time = time.time()
         status = {
-            "command": command,
             "imageName": image_name,
             "forwardedPorts": forwarded_ports,
             "startTime": start_time,
             "timeout": timeout,
         }
-        status_path = self._status_path(identifier)
-        
-        if not os.path.exists(os.path.dirname(status_path)):
-            os.makedirs(os.path.dirname(status_path))
-            
-        with open(status_path, "w") as status_file:
-            json.dump(status, status_file)
-            
-        return MachineStatus(identifier, status)
+        self._write_json(identifier, status)
+    
+    def update(self, identifier, pid, process_start_time):
+        status_json = self._read_json(identifier)
+        status_json["pid"] = pid
+        status_json["processStartTime"] = process_start_time
+        self._write_json(identifier, status_json)
     
     def read(self, identifier):
-        status_file_path = self._status_path(identifier)
         try:
-            with open(status_file_path) as status_file:
-                status_json = json.load(status_file)
+            status_json = self._read_json(identifier)
             return MachineStatus(identifier, status_json)
         except IOError as error:
             # ENOENT: Machine has been shut down in the interim, so ignore
@@ -231,6 +230,20 @@ class Statuses(object):
     def _status_path(self, identifier):
         return os.path.join(self._status_dir, identifier)
 
+    def _read_json(self, identifier):
+        status_file_path = self._status_path(identifier)
+        with open(status_file_path) as status_file:
+            return json.load(status_file)
+    
+    def _write_json(self, identifier, data):
+        status_path = self._status_path(identifier)
+        
+        if not os.path.exists(os.path.dirname(status_path)):
+            os.makedirs(os.path.dirname(status_path))
+            
+        with open(status_path, "w") as status_file:
+            json.dump(data, status_file)
+
 
 def _create_machine(*args, **kwargs):
     machine = QemuMachine(*args, **kwargs)
@@ -244,19 +257,21 @@ class QemuMachine(object):
     users = [unprivileged_user, root_user]
     
     def __init__(self, status, statuses):
-        self._command = status.command
         self.image_name = status.image_name
         self.identifier = status.identifier
+        self._pid = status.pid
+        self._process_start_time = status.process_start_time
         self._forwarded_ports = status.forwarded_ports
         self._statuses = statuses
     
     def is_running(self):
-        return self._process_id() is not None
+        if not _process_is_running(self._pid):
+            return False
+        return _process_start_time_from_pid(self._pid) == self._process_start_time
     
     def destroy(self):
-        process_id = self._process_id()
-        if process_id is not None:
-            local_shell.run(["kill", str(process_id)])
+        if self.is_running():
+            local_shell.run(["kill", str(self._pid)])
         
         wait.wait_until_not(
             self.is_running, timeout=10, wait_time=0.1,
@@ -265,25 +280,20 @@ class QemuMachine(object):
         
         self._statuses.remove(self.identifier)
         
-    def _process_id(self):
-        pgrep_regex = "^{0} .*{1}".format(self._command, self.identifier)
-        result = local_shell.run(["pgrep", "-f", pgrep_regex], allow_error=True)
-        # Return code of 1 indicates no processes matched
-        if result.return_code not in [0, 1]:
-            raise result.to_error()
-        process_ids = [int(line) for line in result.output.split("\n") if line]
-        if len(process_ids) > 1:
-            raise RuntimeError("Multiple processes found for VM")
-        if process_ids:
-            return process_ids[0]
-        else:
-            return None
-        
     def public_port(self, guest_port):
         return self._forwarded_ports.get(guest_port, None)
         
     def hostname(self):
         return starboard.find_local_hostname()
-    
+
+
+def _process_start_time_from_pid(pid):
+    return int(psutil.Process(pid).create_time)
+
+
+def _process_is_running(pid):
+    status = psutil.Process(pid).status
+    return status not in [psutil.STATUS_DEAD, psutil.STATUS_ZOMBIE]
+
 
 _GUEST_SSH_PORT = 22
