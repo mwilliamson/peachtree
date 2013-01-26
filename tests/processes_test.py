@@ -1,4 +1,7 @@
+import uuid
+
 from nose.tools import istest, assert_equal
+import spur
 
 from peachtree import processes, wait
 
@@ -51,6 +54,29 @@ def can_kill_all_processes():
     assert process_set.all_running()
     process_set.kill_all()
     assert not process_set.any_running()
+    
+
+@istest
+def kill_all_kills_process():
+    identifier = str(uuid.uuid4())
+    process_set = processes.start({
+        "one": ["sh", "-c", "cat; echo {0}".format(identifier)],
+    })
+    
+    def process_is_running():
+        result = spur.LocalShell().run(["pgrep", "-f", identifier], allow_error=True)
+        if result.return_code == 0:
+            return True
+        elif result.return_code == 1:
+            return False
+        else:
+            raise result.to_error()
+    
+    wait.wait_until(process_is_running, timeout=1, wait_time=0.1)
+    assert process_is_running()
+    process_set.kill_all()
+    wait.wait_until_not(process_is_running, timeout=1, wait_time=0.1)
+    assert not process_is_running()
 
 
 @istest

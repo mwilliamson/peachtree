@@ -276,8 +276,7 @@ class QemuMachine(object):
         return self._process_set.all_running()
     
     def destroy(self):
-        if self.is_running():
-            self._process_set.kill_all()
+        self._process_set.kill_all()
         
         wait.wait_until_not(
             self._process_set.any_running, timeout=10, wait_time=0.1,

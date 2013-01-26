@@ -20,11 +20,12 @@ def start(commands):
     def start_process((name, command_args)):
         output_file = os.path.join(run_dir, "{0}.output".format(name))
         command = " ".join(map(_escape_sh, command_args))
-        redirected_command = ["sh", "-c", "{0} > {1} 2>&1".format(command, output_file)]
+        redirected_command = ["sh", "-c", "exec {0} > {1} 2>&1".format(command, output_file)]
         process = local_shell.spawn(redirected_command, store_pid=True)
         process_info = _process_info_for_pid(process.pid)
         with open(os.path.join(run_dir, "{0}.process-info".format(name)), "w") as process_info_file:
             json.dump({"pid": process_info.pid, "startTime": process_info.start_time}, process_info_file)
+            
         return (name, process_info)
     
     return ProcessSet(run_dir, dict(map(start_process, commands.iteritems())))
