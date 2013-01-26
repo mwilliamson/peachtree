@@ -1,7 +1,6 @@
 from nose.tools import assert_equals
 import hamcrest
 from hamcrest import assert_that, contains, has_property
-import spur
 
 from nose_test_sets import TestSetBuilder
 from peachtree import wait

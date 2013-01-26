@@ -4,7 +4,6 @@ import time
 import json
 import errno
 
-import psutil
 import spur
 import spur.ssh
 import starboard
