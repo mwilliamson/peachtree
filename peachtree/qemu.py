@@ -261,9 +261,10 @@ def _create_machine(*args, **kwargs):
 
 class QemuMachine(object):
     _password = "password1"
-    unprivileged_user = User("qemu-user", _password)
-    root_user = User("root", _password)
-    users = [unprivileged_user, root_user]
+    users = [
+        User("qemu-user", _password, is_root=False),
+        User("root", _password, is_root=True),
+    ]
     
     def __init__(self, status, statuses):
         self.image_name = status.image_name

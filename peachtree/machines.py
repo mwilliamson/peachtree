@@ -33,17 +33,19 @@ class MachineWrapper(object):
         self.destroy()
     
     def root_shell(self):
-        return self.shell(self._machine.root_user.username)
+        root_username = next(
+            user.username
+            for user in self._users.itervalues()
+            if user.is_root
+        )
+        return self.shell(root_username)
         
     def shell(self, *args, **kwargs):
         config = self.ssh_config(*args, **kwargs)
         return config.shell()
         
     def ssh_config(self, username=None):
-        if username is None:
-            user = self._machine.unprivileged_user
-        else:
-            user = self._users[username]
+        user = self._find_user(username)
         return SshConfig(
             hostname=self.hostname(),
             port=self.public_port(_GUEST_SSH_PORT),
@@ -69,6 +71,17 @@ class MachineWrapper(object):
                 pass
             time.sleep(1)
         raise RuntimeError("Failed to restart VM")
+        
+    def _find_user(self, username):
+        if username is None:
+            return next(
+                user
+                for user in self._users.itervalues()
+                if not user.is_root
+            )
+        else:
+            return self._users[username]
+        
 
 # TODO: don't assume SSH port of 22
 _GUEST_SSH_PORT = 22
