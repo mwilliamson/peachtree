@@ -109,8 +109,10 @@ def start_server(port, provider):
             "identifier": machine.identifier,
             "imageName": machine.image_name,
             "hostname": machine.hostname(),
-            "sshConfig": sshconfig.to_dict(ssh_config),
-            "rootSshConfig": sshconfig.to_dict(root_ssh_config),
+            "users": [
+                {"username": user.username, "password": user.password, "isRoot": user.is_root}
+                for user in machine.users()
+            ],
         }
     
     config = Configurator()

@@ -261,7 +261,7 @@ def _create_machine(*args, **kwargs):
 
 class QemuMachine(object):
     _password = "password1"
-    users = [
+    _users = [
         User("qemu-user", _password, is_root=False),
         User("root", _password, is_root=True),
     ]
@@ -291,6 +291,9 @@ class QemuMachine(object):
         
     def hostname(self):
         return starboard.find_local_hostname()
+        
+    def users(self):
+        return self._users
 
 
 _GUEST_SSH_PORT = 22

@@ -1,6 +1,8 @@
 import requests
 
-from . import sshconfig
+from .machines import MachineWrapper
+from . import dictobj
+from .users import User
 
 
 def remote_provider(url=None, hostname=None, port=None):
@@ -18,18 +20,18 @@ class RemoteProvider(object):
         
     def start(self, image_name, public_ports=None):
         response = self._api.start(image_name, public_ports=public_ports)
-        return RemoteMachine(response, self._api)
+        return _create_machine(response, self._api)
 
     def find_running_machine(self, identifier):
         response = self._api.running_machine(identifier)
         if response is None:
             return None
         else:
-            return RemoteMachine(response, self._api)
+            return _create_machine(response, self._api)
     
     def list_running_machines(self):
         machines = self._api.running_machines()
-        return [RemoteMachine(machine, self._api) for machine in machines]
+        return [_create_machine(machine, self._api) for machine in machines]
     
     def _url(self, path):
         return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))
@@ -41,26 +43,23 @@ class RemoteProvider(object):
         pass
 
 
+def _create_machine(*args, **kwargs):
+    return MachineWrapper(RemoteMachine(*args, **kwargs))
+
+
 class RemoteMachine(object):
     def __init__(self, desc, api):
         self.identifier = desc["identifier"]
         self.image_name = desc["imageName"]
         self._hostname = desc["hostname"]
-        self._ssh_config = sshconfig.from_dict(desc["sshConfig"])
-        self._root_ssh_config = sshconfig.from_dict(desc["rootSshConfig"])
+        self._users = [dictobj.dict_to_obj(user, User) for user in desc["users"]]
         self._api = api
     
     def hostname(self):
         return self._hostname
-    
-    def ssh_config(self):
-        return self._ssh_config
-    
-    def shell(self):
-        return self._ssh_config.shell()
         
-    def root_shell(self):
-        return self._root_ssh_config.shell()
+    def users(self):
+        return self._users
     
     def is_running(self):
         return self._api.is_running(self.identifier)
@@ -74,12 +73,6 @@ class RemoteMachine(object):
     def destroy(self):
         self._api.destroy(self.identifier)
     
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        self.destroy()
-        
     def __repr__(self):
         return "RemoteMachine {0}".format(self.identifier)
 

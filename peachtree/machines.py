@@ -15,16 +15,13 @@ class MachineWrapper(object):
         "is_running",
         "public_port",
         "destroy",
+        "users",
     ]
     
     def __init__(self, machine):
         self._machine = machine
         for delegate in self._delegates:
             setattr(self, delegate, getattr(self._machine, delegate))
-        self._users = dict(
-            (user.username, user)
-            for user in self._machine.users
-        )
     
     def __enter__(self):
         return self
@@ -35,7 +32,7 @@ class MachineWrapper(object):
     def root_shell(self):
         root_username = next(
             user.username
-            for user in self._users.itervalues()
+            for user in self.users()
             if user.is_root
         )
         return self.shell(root_username)
@@ -73,14 +70,13 @@ class MachineWrapper(object):
         raise RuntimeError("Failed to restart VM")
         
     def _find_user(self, username):
+        
         if username is None:
-            return next(
-                user
-                for user in self._users.itervalues()
-                if not user.is_root
-            )
+            condition = lambda user: not user.is_root
         else:
-            return self._users[username]
+            condition = lambda user: user.username == username
+            
+        return filter(condition, self.users())[0]
         
 
 # TODO: don't assume SSH port of 22
