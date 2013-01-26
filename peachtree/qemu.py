@@ -294,15 +294,6 @@ class QemuMachine(object):
         return starboard.find_local_hostname()
 
 
-def _process_start_time_from_pid(pid):
-    return int(psutil.Process(pid).create_time)
-
-
-def _process_is_running(pid):
-    status = psutil.Process(pid).status
-    return status not in [psutil.STATUS_DEAD, psutil.STATUS_ZOMBIE]
-
-
 _GUEST_SSH_PORT = 22
 
 
