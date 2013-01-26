@@ -12,6 +12,7 @@ import starboard
 from . import wait
 from .users import User
 from .machines import MachineWrapper
+from . import processes
 
 local_shell = spur.LocalShell()
 
@@ -51,15 +52,14 @@ class Provider(object):
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
         self._statuses.write(identifier, image_name, forwarded_ports, timeout)
-        process = self._invoker.start_process(image_name, forwarded_ports)
-        process_start_time = _process_start_time_from_pid(process.pid)
-        self._statuses.update(identifier, process.pid, process_start_time)
+        process_set = self._invoker.start_process(image_name, forwarded_ports)
+        self._statuses.update(identifier, process_set)
         
         status = self._statuses.read(identifier)
         machine = _create_machine(status, self._statuses)
         
         try:
-            self._wait_for_ssh(process, machine)
+            self._wait_for_ssh(process_set, machine)
             return machine
         except:
             machine.destroy()
@@ -74,10 +74,13 @@ class Provider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
         
-    def _wait_for_ssh(self, process, machine):
+    def _wait_for_ssh(self, process_set, machine):
         def attempt_ssh_command():
-            if not process.is_running():
-                raise process.wait_for_result().to_error()
+            if not process_set.all_running():
+                process_set.kill_all()
+                wait.wait_until_not(process_set.any_running, timeout=1, wait_time=0.1)
+                output = process_set.all_output()
+                raise RuntimeError("Process died, output:\n{0}".format(output))
             machine.root_shell().run(["true"])
             
         wait.wait_until_successful(
@@ -142,7 +145,7 @@ class QemuInvoker(object):
         # TODO: kill processes started by network
         network = self._networking.start(forwarded_ports)
         netdev_arg = network.qemu_netdev_arg()
-        return local_shell.spawn([
+        qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
@@ -150,7 +153,8 @@ class QemuInvoker(object):
             "-drive", "file={0},if=virtio".format(image_path),
             "-netdev", "{0},id=guest0".format(netdev_arg),
             "-device", "virtio-net-pci,netdev=guest0",
-        ], store_pid=True)
+        ]
+        return processes.start({"qemu": qemu_command})
 
 
 class Images(object):
@@ -173,14 +177,13 @@ class MachineStatus(object):
         ("forwardedPorts", "forwarded_ports"),
         ("startTime", "start_time"),
         ("timeout", "timeout"),
-        ("pid", "pid"),
-        ("processStartTime", "process_start_time"),
+        ("processSetRunDir", "process_set_run_dir"),
     ]
     
     def __init__(self, identifier, json):
         self.identifier = identifier
         for json_name, py_name in self._fields:
-            setattr(self, py_name, json.get(json_name, None))
+            setattr(self, py_name, json[json_name])
         
         self.forwarded_ports = dict(
             (int(guest_port), host_port)
@@ -211,10 +214,9 @@ class Statuses(object):
         }
         self._write_json(identifier, status)
     
-    def update(self, identifier, pid, process_start_time):
+    def update(self, identifier, process_set):
         status_json = self._read_json(identifier)
-        status_json["pid"] = pid
-        status_json["processStartTime"] = process_start_time
+        status_json["processSetRunDir"] = process_set.run_dir
         self._write_json(identifier, status_json)
     
     def read(self, identifier):
@@ -267,22 +269,19 @@ class QemuMachine(object):
     def __init__(self, status, statuses):
         self.image_name = status.image_name
         self.identifier = status.identifier
-        self._pid = status.pid
-        self._process_start_time = status.process_start_time
+        self._process_set = processes.from_dir(status.process_set_run_dir)
         self._forwarded_ports = status.forwarded_ports
         self._statuses = statuses
     
     def is_running(self):
-        if self._pid is None or not _process_is_running(self._pid):
-            return False
-        return _process_start_time_from_pid(self._pid) == self._process_start_time
+        return self._process_set.all_running()
     
     def destroy(self):
         if self.is_running():
-            local_shell.run(["kill", str(self._pid)])
+            self._process_set.kill_all()
         
         wait.wait_until_not(
-            self.is_running, timeout=10, wait_time=0.1,
+            self._process_set.any_running, timeout=10, wait_time=0.1,
             error_message="Failed to kill VM {0}".format(self.identifier)
         )
         
