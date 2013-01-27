@@ -50,8 +50,8 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
         process_set = self._invoker.start_process(image_name, forwarded_ports)
+        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
         self._statuses.update(identifier, process_set)
         
         status = self._statuses.read(identifier)
@@ -141,8 +141,9 @@ class QemuInvoker(object):
         
     def start_process(self, image_name, forwarded_ports):
         image_path = self._images.image_path(image_name)
-        # TODO: kill processes started by network
-        network = self._networking.start(forwarded_ports)
+        # TODO: kill processes started by network if exception is raised
+        process_set = processes.start({})
+        network = self._networking.start(forwarded_ports, process_set)
         netdev_arg = network.qemu_netdev_arg()
         qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
@@ -153,7 +154,8 @@ class QemuInvoker(object):
             "-netdev", "{0},id=guest0".format(netdev_arg),
             "-device", "virtio-net-pci,netdev=guest0",
         ]
-        return processes.start({"qemu": qemu_command})
+        process_set.start({"qemu": qemu_command})
+        return process_set
 
 
 class Images(object):
@@ -300,7 +302,7 @@ _GUEST_SSH_PORT = 22
 
 
 class UserNetworking(object):
-    def start(self, forwarded_ports):
+    def start(self, forwarded_ports, process_set):
         return UserNetwork(forwarded_ports)
 
 
