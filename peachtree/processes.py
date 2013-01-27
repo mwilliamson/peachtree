@@ -12,20 +12,16 @@ local_shell = spur.LocalShell()
 
 
 def start(commands):
-    run_dir = tempfile.mkdtemp(prefix="process-set-")
-    
-    with open(os.path.join(run_dir, "names"), "w") as names_file:
-        for name in commands.keys():
-            names_file.write("{0}\n".format(name))
+    run_dir = RunDirectory(tempfile.mkdtemp(prefix="process-set-"))
+    run_dir.write_names(commands.keys())
     
     def start_process((name, command_args)):
-        output_file = os.path.join(run_dir, "{0}.output".format(name))
+        output_file = run_dir.output_path(name)
         command = " ".join(map(_escape_sh, command_args))
         redirected_command = ["sh", "-c", "exec {0} > {1} 2>&1".format(command, output_file)]
         process = local_shell.spawn(redirected_command, store_pid=True)
         process_info = _process_info_for_pid(process.pid)
-        with open(os.path.join(run_dir, "{0}.process-info".format(name)), "w") as process_info_file:
-            json.dump({"pid": process_info.pid, "startTime": process_info.start_time}, process_info_file)
+        run_dir.write_process_info(name, process_info)
             
         return (name, process_info)
     
@@ -33,15 +29,9 @@ def start(commands):
 
 
 def from_dir(run_dir):
-    with open(os.path.join(run_dir, "names")) as names_file:
-        names = [line.strip() for line in names_file.readlines()]
-        
-    def load_process_info(name):
-        with open(os.path.join(run_dir, "{0}.process-info".format(name))) as process_info_file:
-            properties = json.load(process_info_file)
-            return ProcessInfo(properties["pid"], properties["startTime"])
-        
-    process_infos = map(load_process_info, names)
+    run_dir = RunDirectory(run_dir)
+    names = run_dir.read_names()
+    process_infos = map(run_dir.read_process_info, names)
         
     return ProcessSet(run_dir, dict(zip(names, process_infos)))
 
@@ -51,7 +41,9 @@ ProcessInfo = collections.namedtuple("ProcessInfo", ["pid", "start_time"])
     
 class ProcessSet(object):
     def __init__(self, run_dir, processes):
-        self.run_dir = run_dir
+        # TODO: should rename RunDirectory (process info persistence?)
+        self._run_dir = run_dir
+        self.run_dir = run_dir._run_dir
         self._processes = processes
 
     def all_running(self):
@@ -125,3 +117,39 @@ def _process_start_time_from_pid(pid):
     
 def _escape_sh(value):
     return "'" + value.replace("'", "'\\''") + "'"
+
+
+class RunDirectory(object):
+    def __init__(self, run_dir):
+        self._run_dir = run_dir
+    
+    def write_names(self, names):
+        with open(self._names_path(), "w") as names_file:
+            for name in names:
+                names_file.write("{0}\n".format(name))
+    
+    def read_names(self):
+        with open(self._names_path()) as names_file:
+            return [line.strip() for line in names_file.readlines()]
+    
+    def write_process_info(self, name, process_info):
+        with open(self._process_info_path(name), "w") as process_info_file:
+            data = {
+                "pid": process_info.pid,
+                "startTime": process_info.start_time
+            }
+            json.dump(data, process_info_file)
+    
+    def read_process_info(self, name):
+        with open(self._process_info_path(name)) as process_info_file:
+            properties = json.load(process_info_file)
+            return ProcessInfo(properties["pid"], properties["startTime"])
+    
+    def output_path(self, name):
+        return os.path.join(self._run_dir, "{0}.output".format(name))
+
+    def _names_path(self):
+        return os.path.join(self._run_dir, "names")
+        
+    def _process_info_path(self, name):
+        return os.path.join(self._run_dir, "{0}.process-info".format(name))
