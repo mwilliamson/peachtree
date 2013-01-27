@@ -13,19 +13,9 @@ local_shell = spur.LocalShell()
 
 def start(commands):
     run_dir = RunDirectory(tempfile.mkdtemp(prefix="process-set-"))
-    run_dir.write_names(commands.keys())
-    
-    def start_process((name, command_args)):
-        output_file = run_dir.output_path(name)
-        command = " ".join(map(_escape_sh, command_args))
-        redirected_command = ["sh", "-c", "exec {0} > {1} 2>&1".format(command, output_file)]
-        process = local_shell.spawn(redirected_command, store_pid=True)
-        process_info = _process_info_for_pid(process.pid)
-        run_dir.write_process_info(name, process_info)
-            
-        return (name, process_info)
-    
-    return ProcessSet(run_dir, dict(map(start_process, commands.iteritems())))
+    process_set = ProcessSet(run_dir, {})
+    process_set.start(commands)
+    return process_set
 
 
 def from_dir(run_dir):
@@ -45,6 +35,21 @@ class ProcessSet(object):
         self._run_dir = run_dir
         self.run_dir = run_dir._run_dir
         self._processes = processes
+
+    def start(self, commands):
+        self._run_dir.write_names(commands.keys())
+        
+        def start_process((name, command_args)):
+            output_file = self._run_dir.output_path(name)
+            command = " ".join(map(_escape_sh, command_args))
+            redirected_command = ["sh", "-c", "exec {0} > {1} 2>&1".format(command, output_file)]
+            process = local_shell.spawn(redirected_command, store_pid=True)
+            process_info = _process_info_for_pid(process.pid)
+            self._run_dir.write_process_info(name, process_info)
+                
+            return (name, process_info)
+            
+        self._processes.update(map(start_process, commands.iteritems()))
 
     def all_running(self):
         return all(self._is_running_each_process())

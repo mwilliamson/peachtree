@@ -91,3 +91,15 @@ def can_kill_all_processes_after_restoring_process_set_from_run_dir():
     assert process_set.all_running()
     process_set.kill_all()
     assert not process_set.any_running()
+
+
+@istest
+def additional_processes_can_be_started():
+    process_set = processes.start({})
+    assert not process_set.any_running()
+    process_set.start({
+        "sleep": ["sh", "-c", "sleep 0.1"]
+    })
+    assert process_set.any_running()
+    wait.wait_until_not(process_set.any_running, timeout=1, wait_time=0.1)
+    assert not process_set.any_running()
