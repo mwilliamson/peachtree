@@ -15,7 +15,8 @@ def start(commands):
     run_dir = tempfile.mkdtemp(prefix="process-set-")
     
     with open(os.path.join(run_dir, "names"), "w") as names_file:
-        json.dump(commands.keys(), names_file)
+        for name in commands.keys():
+            names_file.write("{0}\n".format(name))
     
     def start_process((name, command_args)):
         output_file = os.path.join(run_dir, "{0}.output".format(name))
@@ -33,7 +34,7 @@ def start(commands):
 
 def from_dir(run_dir):
     with open(os.path.join(run_dir, "names")) as names_file:
-        names = json.load(names_file)
+        names = [line.strip() for line in names_file.readlines()]
         
     def load_process_info(name):
         with open(os.path.join(run_dir, "{0}.process-info".format(name))) as process_info_file:
