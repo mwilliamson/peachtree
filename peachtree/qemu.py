@@ -3,6 +3,7 @@ import uuid
 import time
 import json
 import errno
+import itertools
 
 import spur
 import spur.ssh
@@ -309,17 +310,38 @@ class UserNetworking(object):
 class UserNetwork(object):
     def __init__(self, forwarded_ports):
         self._forwarded_ports = forwarded_ports
-    
-    def __enter__(self):
-        return self
         
-    def __exit__(self, *args):
-        pass
-    
     def qemu_netdev_arg(self):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
             in self._forwarded_ports.iteritems()
         ]
-        return "user,id=guest0," + ",".join(kvm_forward_ports)
+        return "user," + ",".join(kvm_forward_ports)
+
+
+
+class VdeNetworking(object):
+    def start(self, forwarded_ports, process_set):
+        switch_path = "/tmp/{0}".format(uuid.uuid4())
+        process_set.start({
+            "switch": ["vde_switch", "-s", switch_path]
+        })
+        # first address assigned by default slirpvde DHCP server
+        guest_hostname = "10.0.2.15" 
+        port_args = list(itertools.chain(*[
+            ["-L", "{0}:{1}:{2}".format(host_port, guest_hostname, guest_port)]
+            for guest_port, host_port in forwarded_ports.iteritems()
+        ]))
+        process_set.start({
+            "slirpvde": ["slirpvde", "-s", switch_path, "--dhcp"] + port_args
+        })
+        return VdeNetwork(switch_path)
+
+
+class VdeNetwork(object):
+    def __init__(self, switch_path):
+        self._switch_path = switch_path
+    
+    def qemu_netdev_arg(self):
+        return "vde,sock={0}".format(self._switch_path)
