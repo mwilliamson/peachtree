@@ -324,9 +324,24 @@ class UserNetwork(object):
 class VdeNetworking(object):
     def start(self, forwarded_ports, process_set):
         switch_path = "/tmp/{0}".format(uuid.uuid4())
+        management_path = "/tmp/{0}".format(uuid.uuid4())
         process_set.start({
-            "switch": ["vde_switch", "-s", switch_path]
+            "switch": ["vde_switch", "-s", switch_path, "-M", management_path]
         })
+        
+        def can_connect_to_switch():
+            # TODO: escape management_path
+            result = local_shell.run(
+                ["sh", "-c", "true | vdeterm {0}".format(management_path)],
+                allow_error=True
+            )
+            return result.return_code == 0
+            
+        wait.wait_until(
+            can_connect_to_switch, timeout=10, wait_time=0.1,
+            error_message="Failed to connect to vde_switch"
+        )
+        
         # first address assigned by default slirpvde DHCP server
         guest_hostname = "10.0.2.15" 
         port_args = list(itertools.chain(*[
