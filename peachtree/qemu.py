@@ -317,15 +317,14 @@ class UserNetwork(object):
 class VdeNetworking(object):
     def start(self, forwarded_ports, process_set):
         switch_path = "/tmp/{0}".format(uuid.uuid4())
-        management_path = "/tmp/{0}".format(uuid.uuid4())
         process_set.start({
-            "switch": ["vde_switch", "-s", switch_path, "-M", management_path]
+            "switch": ["vde_switch", "-s", switch_path]
         })
         
         def can_connect_to_switch():
-            # TODO: escape management_path
+            # TODO: escape switch_path
             result = local_shell.run(
-                ["sh", "-c", "true | vdeterm {0}".format(management_path)],
+                ["sh", "-c", "true | vde_plug {0}".format(switch_path)],
                 allow_error=True
             )
             return result.return_code == 0
