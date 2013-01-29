@@ -45,3 +45,23 @@ def conversion_from_obj_to_dict_converts_underscores_to_camel_case():
     
     expected_dict = {"isRoot": True}
     assert_equal(expected_dict, result)
+
+
+@istest
+def instances_of_data_class_are_equal_iff_all_fields_have_the_same_value():
+    User = dictobj.data_class("User", ["username", "password"])
+    
+    assert User("bob", "password1") == User("bob", "password1")
+    assert not User("jim", "password1") == User("bob", "password1")
+    assert not User("bob", "password1") == User("bob", "password2")
+    assert not User("jim", "password1") == User("bob", "password2")
+
+
+@istest
+def instances_of_data_class_are_not_equal_iff_any_fields_have_different_values():
+    User = dictobj.data_class("User", ["username", "password"])
+    
+    assert not User("bob", "password1") != User("bob", "password1")
+    assert User("jim", "password1") != User("bob", "password1")
+    assert User("bob", "password1") != User("bob", "password2")
+    assert User("jim", "password1") != User("bob", "password2")

@@ -71,6 +71,7 @@ def data_class(name, fields):
     properties = {
         "__init__": __init__,
         "__eq__": __eq__,
+        "__ne__": __ne__,
         "__repr__": __repr__,
         "__str__": __str__,
         _fields_attr: fields,
