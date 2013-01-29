@@ -52,16 +52,26 @@ def instances_of_data_class_are_equal_iff_all_fields_have_the_same_value():
     User = dictobj.data_class("User", ["username", "password"])
     
     assert User("bob", "password1") == User("bob", "password1")
-    assert not User("jim", "password1") == User("bob", "password1")
-    assert not User("bob", "password1") == User("bob", "password2")
-    assert not User("jim", "password1") == User("bob", "password2")
+    assert not (User("jim", "password1") == User("bob", "password1"))
+    assert not (User("bob", "password1") == User("bob", "password2"))
+    assert not (User("jim", "password1") == User("bob", "password2"))
 
 
 @istest
 def instances_of_data_class_are_not_equal_iff_any_fields_have_different_values():
     User = dictobj.data_class("User", ["username", "password"])
     
-    assert not User("bob", "password1") != User("bob", "password1")
+    assert not (User("bob", "password1") != User("bob", "password1"))
     assert User("jim", "password1") != User("bob", "password1")
     assert User("bob", "password1") != User("bob", "password2")
     assert User("jim", "password1") != User("bob", "password2")
+
+
+@istest
+def instances_of_data_class_are_not_equal_to_other_types():
+    User = dictobj.data_class("User", ["username", "password"])
+    
+    assert not (User("bob", "password1") == "bob")
+    assert not ("bob" == User("bob", "password1"))
+    assert User("bob", "password1") != "bob"
+    assert "bob" != User("bob", "password1")

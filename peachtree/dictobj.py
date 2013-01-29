@@ -52,11 +52,13 @@ def data_class(name, fields):
             raise TypeError("{0}.__init__ does not take keyword argument {1}".format(name, field_name))
     
     def __eq__(self, other):
-        # TODO: handle other types
-        return all(
-            getattr(self, field_name) == getattr(other, field_name)
-            for field_name in fields
-        )
+        if isinstance(other, new_type):
+            return all(
+                getattr(self, field_name) == getattr(other, field_name)
+                for field_name in fields
+            )
+        else:
+            return NotImplemented
         
     def __ne__(self, other):
         return not (self == other)
@@ -76,4 +78,6 @@ def data_class(name, fields):
         "__str__": __str__,
         _fields_attr: fields,
     }
-    return type(name, (object,), properties)
+    
+    new_type = type(name, (object,), properties)
+    return new_type
