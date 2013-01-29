@@ -4,6 +4,7 @@ import time
 import json
 import errno
 import itertools
+import collections
 
 import spur
 import spur.ssh
@@ -13,6 +14,7 @@ from . import wait
 from .users import User
 from .machines import MachineWrapper
 from . import processes
+from . import dictobj
 
 local_shell = spur.LocalShell()
 
@@ -56,10 +58,17 @@ class Provider(object):
         # TODO: kill processes started by network if exception is raised
         network = self._networking.start(forwarded_ports, process_set)
         self._invoker.start_process(image_name, network, process_set)
-        self._statuses.write(identifier, image_name, forwarded_ports, timeout)
-        self._statuses.update(identifier, process_set)
         
-        status = self._statuses.read(identifier)
+        status = MachineStatus(
+            identifier=identifier,
+            image_name=image_name,
+            forwarded_ports=forwarded_ports,
+            timeout=timeout,
+            start_time=time.time(),
+            process_set_run_dir=process_set.run_dir
+        )
+        
+        self._statuses.write(status)
         machine = _create_machine(status, self._statuses)
         
         try:
@@ -171,26 +180,16 @@ def _default_data_dir():
     return os.path.join(xdg_data_home, "peachtree/qemu")
     
 
-class MachineStatus(object):
-    # TODO: find a better way of storing details for machines
-    _fields = [
-        ("imageName", "image_name"),
-        ("forwardedPorts", "forwarded_ports"),
-        ("startTime", "start_time"),
-        ("timeout", "timeout"),
-        ("processSetRunDir", "process_set_run_dir"),
+MachineStatus = collections.namedtuple("MachineStatus",
+    [
+        "identifier",
+        "image_name",
+        "forwarded_ports",
+        "start_time",
+        "timeout",
+        "process_set_run_dir",
     ]
-    
-    def __init__(self, identifier, json):
-        self.identifier = identifier
-        for json_name, py_name in self._fields:
-            setattr(self, py_name, json[json_name])
-        
-        self.forwarded_ports = dict(
-            (int(guest_port), host_port)
-            for guest_port, host_port
-            in self.forwarded_ports.iteritems()
-        )
+)
 
 
 class Statuses(object):
@@ -205,31 +204,27 @@ class Statuses(object):
             if error.errno != errno.ENOENT:
                 raise
     
-    def write(self, identifier, image_name, forwarded_ports, timeout):
-        start_time = time.time()
-        status = {
-            "imageName": image_name,
-            "forwardedPorts": forwarded_ports,
-            "startTime": start_time,
-            "timeout": timeout,
-        }
-        self._write_json(identifier, status)
-    
-    def update(self, identifier, process_set):
-        status_json = self._read_json(identifier)
-        status_json["processSetRunDir"] = process_set.run_dir
-        self._write_json(identifier, status_json)
+    def write(self, status):
+        status_json = dictobj.obj_to_dict(status)
+        self._write_json(status.identifier, status_json)
     
     def read(self, identifier):
         try:
-            status_json = self._read_json(identifier)
-            return MachineStatus(identifier, status_json)
+            status_dict = self._read_json(identifier)
         except IOError as error:
             # ENOENT: Machine has been shut down in the interim, so ignore
             if error.errno == errno.ENOENT:
                 return None
             else:
                 raise
+        
+        status_dict["forwardedPorts"] = dict(
+            (int(guest_port), host_port)
+            for guest_port, host_port
+            in status_dict["forwardedPorts"].iteritems()
+        )
+        status = dictobj.dict_to_obj(status_dict, MachineStatus)
+        return status
                         
     def read_all(self):
         if not os.path.exists(self._status_dir):
