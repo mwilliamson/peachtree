@@ -29,9 +29,9 @@ def qemu_provider(command=None, accel_arg=None, networking=None, data_dir=None):
         
     data_dir = data_dir or _default_data_dir()
     images = Images(data_dir)
-    invoker = QemuInvoker(command, accel_arg, networking, images)
+    invoker = QemuInvoker(command, accel_arg, images)
     statuses = Statuses(os.path.join(data_dir, "status"))
-    return Provider(invoker, statuses)
+    return Provider(invoker, networking, statuses)
 
 
 def _find_qemu_command():
@@ -42,8 +42,9 @@ def _find_qemu_command():
 
 
 class Provider(object):
-    def __init__(self, invoker, statuses):
+    def __init__(self, invoker, networking, statuses):
         self._invoker = invoker
+        self._networking = networking
         self._statuses = statuses
     
     def start(self, image_name, public_ports=None, timeout=None):
@@ -51,7 +52,10 @@ class Provider(object):
         public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
-        process_set = self._invoker.start_process(image_name, forwarded_ports)
+        process_set = processes.start({})
+        # TODO: kill processes started by network if exception is raised
+        network = self._networking.start(forwarded_ports, process_set)
+        self._invoker.start_process(image_name, network, process_set)
         self._statuses.write(identifier, image_name, forwarded_ports, timeout)
         self._statuses.update(identifier, process_set)
         
@@ -134,17 +138,13 @@ class Provider(object):
 
 
 class QemuInvoker(object):
-    def __init__(self, command, accel_arg, networking, images):
+    def __init__(self, command, accel_arg, images):
         self._command = command
         self._accel_arg = accel_arg
-        self._networking = networking
         self._images = images
         
-    def start_process(self, image_name, forwarded_ports):
+    def start_process(self, image_name, network, process_set):
         image_path = self._images.image_path(image_name)
-        # TODO: kill processes started by network if exception is raised
-        process_set = processes.start({})
-        network = self._networking.start(forwarded_ports, process_set)
         netdev_arg = network.qemu_netdev_arg()
         qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
@@ -156,7 +156,6 @@ class QemuInvoker(object):
             "-device", "virtio-net-pci,netdev=guest0",
         ]
         process_set.start({"qemu": qemu_command})
-        return process_set
 
 
 class Images(object):
