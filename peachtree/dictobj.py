@@ -1,4 +1,5 @@
 import re
+import uuid
 
 
 def dict_to_obj(dict_kwargs, cls):
@@ -13,7 +14,7 @@ def dict_to_obj(dict_kwargs, cls):
 def obj_to_dict(obj):
     return dict(
         (_to_camel_case(key), getattr(obj, key))
-        for key in obj._fields
+        for key in getattr(obj, _fields_attr)
     )
 
 
@@ -32,3 +33,46 @@ def _to_camel_case(value):
 
     c = camelcase()
     return "".join(c.next()(x) if x else '_' for x in value.split("_"))
+
+
+_fields_attr = str(uuid.uuid4())
+
+
+def data_class(name, fields):
+    def __init__(self, *args, **kwargs):
+        for field_index, field_name in enumerate(fields):
+            if field_index < len(args):
+                setattr(self, field_name, args[field_index])
+            elif field_name in kwargs:
+                setattr(self, field_name, kwargs.pop(field_name))
+            else:
+                raise TypeError("Missing argument: {0}".format(field_name))
+                
+        for field_name in kwargs.iterkeys():
+            raise TypeError("{0}.__init__ does not take keyword argument {1}".format(name, field_name))
+    
+    def __eq__(self, other):
+        # TODO: handle other types
+        return all(
+            getattr(self, field_name) == getattr(other, field_name)
+            for field_name in fields
+        )
+        
+    def __ne__(self, other):
+        return not (self == other)
+        
+    def __repr__(self):
+        values = (getattr(self, field_name) for field_name in fields)
+        return "{0}({1})".format(name, ", ".join(values))
+        
+    def __str__(self):
+        return repr(self)
+    
+    properties = {
+        "__init__": __init__,
+        "__eq__": __eq__,
+        "__repr__": __repr__,
+        "__str__": __str__,
+        _fields_attr: fields,
+    }
+    return type(name, (object,), properties)

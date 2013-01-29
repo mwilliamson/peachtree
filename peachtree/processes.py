@@ -1,11 +1,12 @@
 import os
-import collections
 import tempfile
 import errno
 import json
 
 import spur
 import psutil
+
+from . import dictobj
 
 
 local_shell = spur.LocalShell()
@@ -26,7 +27,7 @@ def from_dir(run_dir):
     return ProcessSet(run_dir, dict(zip(names, process_infos)))
 
 
-ProcessInfo = collections.namedtuple("ProcessInfo", ["pid", "start_time"])
+ProcessInfo = dictobj.data_class("ProcessInfo", ["pid", "start_time"])
     
     
 class ProcessSet(object):

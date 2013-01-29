@@ -4,7 +4,6 @@ import time
 import json
 import errno
 import itertools
-import collections
 
 import spur
 import spur.ssh
@@ -180,7 +179,7 @@ def _default_data_dir():
     return os.path.join(xdg_data_home, "peachtree/qemu")
     
 
-MachineStatus = collections.namedtuple("MachineStatus",
+MachineStatus = dictobj.data_class("MachineStatus",
     [
         "identifier",
         "image_name",

@@ -1,5 +1,3 @@
-import collections
-
 from nose.tools import istest, assert_equal
 
 from peachtree import dictobj
@@ -7,7 +5,7 @@ from peachtree import dictobj
 
 @istest
 def conversion_from_dict_to_obj_uses_items_as_constructor_args():
-    User = collections.namedtuple("User", ["username", "password"])
+    User = dictobj.data_class("User", ["username", "password"])
     
     input_dict = {"username": "bob", "password": "password1"}
     converted_user = dictobj.dict_to_obj(input_dict, User)
@@ -18,7 +16,7 @@ def conversion_from_dict_to_obj_uses_items_as_constructor_args():
 
 @istest
 def arguments_with_camelcase_names_are_converted_to_use_underscores():
-    User = collections.namedtuple("User", ["is_root"])
+    User = dictobj.data_class("User", ["is_root"])
     
     input_dict = {"isRoot": True}
     converted_user = dictobj.dict_to_obj(input_dict, User)
@@ -29,7 +27,7 @@ def arguments_with_camelcase_names_are_converted_to_use_underscores():
 
 @istest
 def conversion_from_obj_to_dict_uses_hacktastic_fields_property():
-    User = collections.namedtuple("User", ["username", "password"])
+    User = dictobj.data_class("User", ["username", "password"])
     
     user = User("bob", "password1")
     result = dictobj.obj_to_dict(user)
@@ -40,7 +38,7 @@ def conversion_from_obj_to_dict_uses_hacktastic_fields_property():
 
 @istest
 def conversion_from_obj_to_dict_converts_underscores_to_camel_case():
-    User = collections.namedtuple("User", ["is_root"])
+    User = dictobj.data_class("User", ["is_root"])
     
     input_user = User(is_root=True)
     result = dictobj.obj_to_dict(input_user)

@@ -1,4 +1,4 @@
-import collections
+from . import dictobj
 
 
-User = collections.namedtuple("User", ["username", "password", "is_root"])
+User = dictobj.data_class("User", ["username", "password", "is_root"])
