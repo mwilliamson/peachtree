@@ -4,6 +4,8 @@ import time
 import json
 import errno
 import itertools
+import random
+import re
 
 import spur
 import spur.ssh
@@ -14,6 +16,7 @@ from .users import User
 from .machines import MachineWrapper
 from . import processes
 from . import dictobj
+from .sshconfig import SshConfig
 
 local_shell = spur.LocalShell()
 
@@ -71,12 +74,87 @@ class Provider(object):
         machine = _create_machine(status, self._statuses)
         
         try:
-            self._wait_for_ssh(process_set, machine)
+            self._wait_for_ssh_on_machine(process_set, machine)
             return machine
         except:
             machine.destroy()
             raise
+    
+    def start_many(self, requests):
+        # TODO: at the moment, process_set is shared between all machines,
+        # meaning the destruction of one machine destroys them all
+        process_set = processes.start({})
+        try:
+            host_ports_for_ssh = starboard.find_local_free_tcp_ports(len(requests))
+            # networking.start_many needs to assign each public port on the host
+            # to be forwarded to port 22 on each of the guests, the IPs of which
+            # should be assigned consecutively by DHCP
+            network = self._networking.start_many(host_ports_for_ssh, process_set)
+            
+            statuses = []
+            
+            for request in requests:
+                identifier = str(uuid.uuid4())
+                mac_address_parts = [0x06] + [random.randint(0x00, 0xff) for i in range(5)]
+                mac_address = ":".join("{0:02x}".format(part) for part in mac_address_parts)
+                self._invoker.start_process(request.image_name, mac_address, network, process_set)
+                
+                status = MachineStatus(
+                    identifier=identifier,
+                    image_name=request.image_name,
+                    forwarded_ports={},
+                    timeout=request.timeout,
+                    start_time=time.time(),
+                    process_set_run_dir=process_set.run_dir,
+                    mac_address=mac_address,
+                )
+                
+                self._statuses.write(status)
+                statuses.append(status)
         
+            for host_port_for_ssh in host_ports_for_ssh:
+                print host_port_for_ssh
+                ssh_config = SshConfig(
+                    hostname="127.0.0.1",
+                    port=host_port_for_ssh,
+                    user="root",
+                    password="password1"
+                )
+                self._wait_for_ssh(process_set, ssh_config)
+                shell = ssh_config.shell()
+                ifconfig = _run_ifconfig(shell)
+                status = next(
+                    status
+                    for status in statuses
+                    if status.mac_address == ifconfig.mac_address
+                )
+                # TODO: create separate objects to represent forwarded ports
+                # to make it obvious which is guest and which is host
+                status.forwarded_ports = {
+                    _GUEST_SSH_PORT: host_port_for_ssh
+                }
+                print status.mac_address
+                print ifconfig.mac_address
+                print ""
+                self._statuses.write(status)
+        
+            return MachineSet([
+                _create_machine(status, self._statuses)
+                for status in statuses
+            ], process_set)
+        except:
+            process_set.kill_all()
+            raise
+        #~ slirp_vde_args = []
+        #~ for request, machine in zip(requests, machines):
+            #~ internal_ip_address = internal_ip_address_map[machine.identifier]
+            #~ for guest_port in request.forward_guest_ports:
+                #~ host_port = (get all free port AOT)
+                #~ guest_hostname = internal_ip_address
+                #~ slirp_vde_args += ["-L", "{0}:{1}:{2}".format(host_port, guest_hostname, guest_port)]
+            
+        # Add port forwardings for second instance of slirpvde (sans DHCP)
+    
     def _generate_forwarded_ports(self, public_ports):
         return dict(
             (port, self._allocate_host_port(port))
@@ -86,14 +164,17 @@ class Provider(object):
     def _allocate_host_port(self, guest_port):
         return starboard.find_local_free_tcp_port()
         
-    def _wait_for_ssh(self, process_set, machine):
+    def _wait_for_ssh_on_machine(self, process_set, machine):
+        return self._wait_for_ssh(process_set, machine.ssh_config("root"))
+        
+    def _wait_for_ssh(self, process_set, ssh_config):
         def attempt_ssh_command():
             if not process_set.all_running():
                 process_set.kill_all()
                 wait.wait_until_not(process_set.any_running, timeout=1, wait_time=0.1)
                 output = process_set.all_output()
                 raise RuntimeError("Process died, output:\n{0}".format(output))
-            machine.root_shell().run(["true"])
+            ssh_config.shell().run(["true"])
             
         wait.wait_until_successful(
             attempt_ssh_command,
@@ -145,24 +226,42 @@ class Provider(object):
                 self._statuses.remove(status.identifier)
 
 
+class MachineSet(object):
+    def __init__(self, machines, process_set):
+        self._machines = machines
+        self._process_set = process_set
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, *args):
+        for machine in self._machines:
+            machine.destroy()
+        self._process_set.kill_all()
+        
+    def __getitem__(self, key):
+        return self._machines[key]
+
+
 class QemuInvoker(object):
     def __init__(self, command, accel_arg, images):
         self._command = command
         self._accel_arg = accel_arg
         self._images = images
         
-    def start_process(self, image_name, network, process_set):
+    def start_process(self, image_name, mac_address, network, process_set):
         image_path = self._images.image_path(image_name)
         netdev_arg = network.qemu_netdev_arg()
         qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
-            "-nographic", "-serial", "none",
+            "-serial", "none",
             "-m", "512",
             "-drive", "file={0},if=virtio".format(image_path),
             "-netdev", "{0},id=guest0".format(netdev_arg),
-            "-device", "virtio-net-pci,netdev=guest0",
+            "-device", "virtio-net-pci,netdev=guest0,mac={0}".format(mac_address),
         ]
+        print qemu_command
         process_set.start({"qemu": qemu_command})
 
 
@@ -187,6 +286,7 @@ MachineStatus = dictobj.data_class("MachineStatus",
         "start_time",
         "timeout",
         "process_set_run_dir",
+        "mac_address",
     ]
 )
 
@@ -345,6 +445,38 @@ class VdeNetworking(object):
         })
         return VdeNetwork(switch_path)
 
+    def start_many(self, host_ports_for_ssh, process_set):
+        switch_path = "/tmp/{0}".format(uuid.uuid4())
+        process_set.start({
+            "switch": ["vde_switch", "-s", switch_path]
+        })
+        
+        def can_connect_to_switch():
+            # TODO: escape switch_path
+            result = local_shell.run(
+                ["sh", "-c", "true | vde_plug {0}".format(switch_path)],
+                allow_error=True
+            )
+            return result.return_code == 0
+            
+        wait.wait_until(
+            can_connect_to_switch, timeout=10, wait_time=0.1,
+            error_message="Failed to connect to vde_switch"
+        )
+        
+        # slirpvde assigns addresses from 10.0.2.15
+        
+        port_args = []
+        for i, host_port in enumerate(host_ports_for_ssh):
+            guest_hostname = "10.0.2.{0}".format(15 + i)
+            port_args += ["-L", "{0}:{1}:{2}".format(host_port, guest_hostname, _GUEST_SSH_PORT)]
+        print port_args
+        process_set.start({
+            "slirpvde": ["slirpvde", "-s", switch_path, "--dhcp"] + port_args
+        })
+        return VdeNetwork(switch_path)
+        
+
 
 class VdeNetwork(object):
     def __init__(self, switch_path):
@@ -352,3 +484,16 @@ class VdeNetwork(object):
     
     def qemu_netdev_arg(self):
         return "vde,sock={0}".format(self._switch_path)
+
+
+def _run_ifconfig(shell):
+    output = shell.run(["/sbin/ifconfig", "eth0"]).output
+    mac_address = re.search("HWaddr (\S+)", output).group(1).lower()
+    return NetworkInterfaceConfig(mac_address)
+    
+    
+NetworkInterfaceConfig = dictobj.data_class(
+    "NetworkInterfaceConfig",
+    ["mac_address"]
+)
+    

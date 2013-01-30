@@ -1,7 +1,7 @@
 import os
 import contextlib
 
-from nose.tools import istest
+from nose.tools import istest, assert_equal
 
 import peachtree
 import peachtree.qemu
@@ -47,6 +47,18 @@ QemuVdeProviderTests = provider_tests.create(
     provider_with_vde_networking
 )
 
+
+@istest
+def can_start_multiple_machines():
+    requests = [
+        peachtree.request_machine(image_name=_IMAGE_NAME),
+        peachtree.request_machine(image_name=_IMAGE_NAME),
+    ]
+    with provider_with_vde_networking() as provider:
+        with provider.start_many(requests) as machines:
+            _assert_can_run_commands_on_machine(machines[0])
+            _assert_can_run_commands_on_machine(machines[1])
+
 @istest
 def running_cron_kills_any_running_machines_past_timeout():
     with provider_with_user_networking() as provider:
@@ -62,3 +74,9 @@ def cron_does_not_kill_machines_without_timeout():
             provider.cron()
             assert machine.is_running()
 
+
+def _assert_can_run_commands_on_machine(machine):
+    print machine.ssh_config()
+    shell = machine.shell()
+    result = shell.run(["echo", "Hello there"])
+    assert_equal("Hello there\n", result.output)

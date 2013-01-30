@@ -110,7 +110,7 @@ def _process_is_running(process_info):
 
 def _kill(process_info):
     if _process_is_running(process_info):
-        local_shell.run(["kill", str(process_info.pid)])
+        local_shell.run(["kill", str(process_info.pid)], allow_error=True)
 
 def _process_info_for_pid(pid):
     start_time = _process_start_time_from_pid(pid)

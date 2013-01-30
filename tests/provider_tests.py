@@ -4,6 +4,7 @@ from hamcrest import assert_that, contains, has_property
 
 from nose_test_sets import TestSetBuilder
 from peachtree import wait
+import peachtree
 
 
 suite_builder = TestSetBuilder()
@@ -137,5 +138,6 @@ def machines_that_have_stopped_are_not_in_list_of_running_machines(provider):
         pass
     running_machines = provider.list_running_machines()
     assert_equals([], running_machines)
+        
 
-create = suite_builder.create    
+create = suite_builder.create

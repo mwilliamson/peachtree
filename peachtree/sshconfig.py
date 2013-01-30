@@ -40,3 +40,7 @@ class SshConfig(object):
             username=self.user,
             password=self.password
         )
+        
+    def __repr__(self):
+        fields = map(str, [self.hostname, self.port, self.user, self.password])
+        return "({0})".format(", ".join(fields))
