@@ -5,6 +5,7 @@ import json
 import errno
 import itertools
 
+from concurrent import futures
 import spur
 import spur.ssh
 import starboard
@@ -77,7 +78,8 @@ class Provider(object):
             raise
             
     def start_many(self, requests):
-        return MachineSet(map(self._start_request, requests))
+        with futures.ThreadPoolExecutor(max_workers=4) as executor:
+            return MachineSet(list(executor.map(self._start_request, requests)))
     
     def _start_request(self, request):
         return self.start(request.image_name)
