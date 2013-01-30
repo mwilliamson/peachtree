@@ -339,8 +339,7 @@ class UserNetworking(object):
         return UserNetworkSettings(forwarded_ports, [])
         
     def start_network(self):
-        # TODO: we actually want a UDP port
-        port = starboard.find_local_free_tcp_port()
+        port = starboard.find_local_free_udp_port()
         return UserNetwork(port)
         
         
@@ -350,7 +349,6 @@ class UserNetwork(object):
         
     def settings_for(self, request):
         forwarded_ports = _generate_forwarded_ports(request.public_ports)
-        # TODO: consider using TCP instead of UDP multicast
         socket_args = _generate_network_args(
             "guest-net-socket",
             "socket,mcast=230.0.0.1:{0},localaddr=127.0.0.1".format(self._port),
