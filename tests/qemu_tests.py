@@ -42,10 +42,6 @@ QemuProviderTests = provider_tests.create(
     provider_with_user_networking
 )
 
-QemuVdeProviderTests = provider_tests.create(
-    "QemuVdeProviderTests",
-    provider_with_vde_networking
-)
 
 @istest
 def running_cron_kills_any_running_machines_past_timeout():
