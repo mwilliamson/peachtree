@@ -54,8 +54,7 @@ class Provider(object):
         forwarded_ports = self._generate_forwarded_ports(public_ports)
         
         process_set = processes.start({})
-        # TODO: kill processes started by network if exception is raised
-        network = self._networking.start(forwarded_ports, process_set)
+        network = self._networking.start_single(forwarded_ports, process_set)
         self._invoker.start_process(image_name, network, process_set)
         
         status = MachineStatus(
@@ -317,7 +316,7 @@ _GUEST_SSH_PORT = 22
 
 
 class UserNetworking(object):
-    def start(self, forwarded_ports, process_set):
+    def start_single(self, forwarded_ports, process_set):
         return UserNetwork(forwarded_ports)
 
 
