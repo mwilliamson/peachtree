@@ -386,11 +386,5 @@ def _generate_network_args(name, netdev):
     
 def _generate_forwarded_ports(public_ports):
     public_ports = set([_GUEST_SSH_PORT] + public_ports)
-    return dict(
-        (port, _allocate_host_port(port))
-        for port in public_ports
-    )
-
-    
-def _allocate_host_port(guest_port):
-    return starboard.find_local_free_tcp_port()
+    host_ports = starboard.find_local_free_tcp_ports(len(public_ports))
+    return dict(zip(public_ports, host_ports))
