@@ -38,6 +38,10 @@ class ProcessSet(object):
         self._processes = processes
 
     def start(self, commands):
+        for name in commands.iterkeys():
+            if name in self._processes:
+                raise ValueError("Cannot start second process with name {0}".format(name))
+        
         self._run_dir.append_names(commands.keys())
         
         def start_process((name, command_args)):

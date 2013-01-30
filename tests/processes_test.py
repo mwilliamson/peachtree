@@ -115,3 +115,9 @@ def additional_processes_can_be_started_and_restored_from_run_dir():
     })
     process_set = processes.from_dir(original_process_set.run_dir)
     assert_equal("true1:\ntrue2:\n", process_set.all_output())
+
+
+@istest
+def error_is_raised_if_trying_to_start_process_with_duplicate_name():
+    process_set = processes.start({"true": ["true"]})
+    assert_raises(ValueError, lambda: process_set.start({"true": ["true"]}))
