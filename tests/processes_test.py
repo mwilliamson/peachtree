@@ -1,6 +1,6 @@
 import uuid
 
-from nose.tools import istest, assert_equal
+from nose.tools import istest, assert_equal, assert_raises
 import spur
 
 from peachtree import processes, wait
@@ -103,3 +103,15 @@ def additional_processes_can_be_started():
     assert process_set.any_running()
     wait.wait_until_not(process_set.any_running, timeout=1, wait_time=0.1)
     assert not process_set.any_running()
+
+
+@istest
+def additional_processes_can_be_started_and_restored_from_run_dir():
+    original_process_set = processes.start({
+        "true1": ["true"],
+    })
+    original_process_set.start({
+        "true2": ["true"]
+    })
+    process_set = processes.from_dir(original_process_set.run_dir)
+    assert_equal("true1:\ntrue2:\n", process_set.all_output())

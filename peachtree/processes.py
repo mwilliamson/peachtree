@@ -38,7 +38,7 @@ class ProcessSet(object):
         self._processes = processes
 
     def start(self, commands):
-        self._run_dir.write_names(commands.keys())
+        self._run_dir.append_names(commands.keys())
         
         def start_process((name, command_args)):
             output_file = self._run_dir.output_path(name)
@@ -129,8 +129,8 @@ class RunDirectory(object):
     def __init__(self, run_dir):
         self._run_dir = run_dir
     
-    def write_names(self, names):
-        with open(self._names_path(), "w") as names_file:
+    def append_names(self, names):
+        with open(self._names_path(), "a") as names_file:
             for name in names:
                 names_file.write("{0}\n".format(name))
     
