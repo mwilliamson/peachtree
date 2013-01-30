@@ -16,7 +16,7 @@ from .users import User
 from .machines import MachineWrapper
 from . import processes
 from . import dictobj
-from .request import request_machine
+from .request import request_machine, MachineRequest
 
 local_shell = spur.LocalShell()
 
@@ -52,7 +52,10 @@ class Provider(object):
         self._statuses = statuses
     
     def start(self, *args, **kwargs):
-        request = request_machine(name="peachtree", *args, **kwargs)
+        if len(args) == 1 and not kwargs and isinstance(args[0], MachineRequest):
+            request = args[0]
+        else:
+            request = request_machine(*(["peachtree"] + list(args)), **kwargs)
         network = self._networking.start_single(request)
         return self._start_with_network_settings(request, network)
             
@@ -336,6 +339,7 @@ class UserNetworking(object):
         return UserNetworkSettings(forwarded_ports, [])
         
     def start_network(self):
+        # TODO: we actually want a UDP port
         port = starboard.find_local_free_tcp_port()
         return UserNetwork(port)
         

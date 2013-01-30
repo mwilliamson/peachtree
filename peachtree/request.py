@@ -1,4 +1,4 @@
-import collections
+from . import dictobj
 
 
 def request_machine(name, image_name, public_ports=None, timeout=None):
@@ -7,7 +7,7 @@ def request_machine(name, image_name, public_ports=None, timeout=None):
     return MachineRequest(name, image_name, public_ports, timeout)
 
 
-MachineRequest = collections.namedtuple(
+MachineRequest = dictobj.data_class(
     "MachineRequest",
     ["name", "image_name", "public_ports", "timeout"]
 )

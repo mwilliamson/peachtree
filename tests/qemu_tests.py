@@ -44,8 +44,8 @@ QemuProviderTests = provider_tests.create(
 @istest
 def can_start_multiple_machines():
     requests = [
-        peachtree.request_machine(image_name=_IMAGE_NAME),
-        peachtree.request_machine(image_name=_IMAGE_NAME),
+        peachtree.request_machine("first", image_name=_IMAGE_NAME),
+        peachtree.request_machine("second", image_name=_IMAGE_NAME),
     ]
     with provider_with_user_networking() as provider:
         with provider.start_many(requests) as machines:

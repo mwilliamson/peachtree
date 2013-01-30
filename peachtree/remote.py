@@ -1,8 +1,10 @@
 import requests
+import json
 
 from .machines import MachineWrapper
 from . import dictobj
 from .users import User
+from .request import request_machine, MachineRequest
 
 
 def remote_provider(url=None, hostname=None, port=None):
@@ -18,8 +20,13 @@ class RemoteProvider(object):
     def __init__(self, base_url):
         self._api = RemoteApi(base_url)
         
-    def start(self, image_name, public_ports=None):
-        response = self._api.start(image_name, public_ports=public_ports)
+    def start(self, *args, **kwargs):
+        # TODO: remove duplication with QemuProvider.start
+        if len(args) == 1 and not kwargs and isinstance(args[0], MachineRequest):
+            request = args[0]
+        else:
+            request = request_machine(*(["peachtree"] + list(args)), **kwargs)
+        response = self._api.start(request)
         return _create_machine(response, self._api)
 
     def find_running_machine(self, identifier):
@@ -84,14 +91,10 @@ class RemoteApi(object):
     def __init__(self, base_url):
         self._base_url = base_url
         
-    def start(self, image_name, public_ports=None):
-        data = {
-            "image-name": image_name,
-            "public-ports": ",".join(map(str, public_ports or []))
-        }
+    def start(self, request):
         return self._action(
             "start",
-            data=data,
+            data=dictobj.obj_to_dict(request),
         )
         
     def running_machine(self, identifier):
@@ -136,7 +139,8 @@ class RemoteApi(object):
     def _post(self, path, data, timeout):
         response = requests.post(
             self._url(path),
-            data=data,
+            data=json.dumps(data),
+            headers={"Content-Type": "application/json"},
             timeout=timeout
         )
         if response.status_code not in [200, 404]:

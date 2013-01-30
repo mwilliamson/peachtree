@@ -8,6 +8,8 @@ from pyramid.config import Configurator
 from pyramid.response import Response
 
 from . import sshconfig
+from . import dictobj
+from .request import MachineRequest
 
 
 _default_timeout = 60 * 60
@@ -19,7 +21,7 @@ def start_server(port, provider):
         def respond(request):
             if request.method == "POST":
                 # TODO: check some credentials
-                status_code, result = func(request.POST)
+                status_code, result = func(request.json_body)
             else:
                 status_code, result = 405, "POST required"
             return Response(
@@ -37,18 +39,9 @@ def start_server(port, provider):
         return 404, result
     
     @view
-    def start(post):
-        image_name = post.get("image-name")
-        public_ports = [
-            int(port)
-            for port in post.get("public-ports").split(",")
-            if port
-        ]
-        machine = provider.start(
-            image_name,
-            public_ports=public_ports,
-            timeout=_default_timeout
-        )
+    def start(body):
+        machine_request = dictobj.dict_to_obj(body, MachineRequest)
+        machine = provider.start(machine_request)
         return success(_describe_machine(machine))
         
     @view
