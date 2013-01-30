@@ -349,7 +349,7 @@ class UserNetwork(object):
         # TODO: consider using TCP instead of UDP multicast
         socket_args = _generate_network_args(
             "guest-net-socket",
-            "socket,mcast=230.0.0.1:{0}".format(self._port),
+            "socket,mcast=230.0.0.1:{0},localaddr=127.0.0.1".format(self._port),
         )
         return UserNetworkSettings(forwarded_ports, socket_args)
 
