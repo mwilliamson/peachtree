@@ -34,8 +34,6 @@ def provider_with_temp_data_dir(networking):
 def provider_with_user_networking():
     return provider_with_temp_data_dir(peachtree.qemu.UserNetworking())
     
-def provider_with_vde_networking():
-    return provider_with_temp_data_dir(peachtree.qemu.VdeNetworking())
 
 QemuProviderTests = provider_tests.create(
     "QemuProviderTests",
