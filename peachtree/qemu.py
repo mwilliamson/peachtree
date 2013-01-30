@@ -56,7 +56,7 @@ class Provider(object):
             request = args[0]
         else:
             request = request_machine(*(["peachtree"] + list(args)), **kwargs)
-        network = self._networking.start_single(request)
+        network = self._networking.settings_for(request)
         return self._start_with_network_settings(request, network)
             
     def start_many(self, requests):
@@ -334,7 +334,7 @@ _GUEST_SSH_PORT = 22
 
 
 class UserNetworking(object):
-    def start_single(self, request):
+    def settings_for(self, request):
         forwarded_ports = _generate_forwarded_ports(request.public_ports)
         return UserNetworkSettings(forwarded_ports, [])
         
