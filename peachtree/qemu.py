@@ -76,7 +76,13 @@ class Provider(object):
         except:
             machine.destroy()
             raise
-        
+            
+    def start_many(self, requests):
+        return MachineSet(map(self._start_request, requests))
+    
+    def _start_request(self, request):
+        return self.start(request.image_name)
+    
     def _generate_forwarded_ports(self, public_ports):
         return dict(
             (port, self._allocate_host_port(port))
@@ -189,6 +195,21 @@ MachineStatus = dictobj.data_class("MachineStatus",
         "process_set_run_dir",
     ]
 )
+
+
+class MachineSet(object):
+    def __init__(self, machines):
+        self._machines = machines
+        
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, *args):
+        for machine in self._machines:
+            machine.destroy()
+            
+    def __getitem__(self, index):
+        return self._machines[index]
 
 
 class Statuses(object):
