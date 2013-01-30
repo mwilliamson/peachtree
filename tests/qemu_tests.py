@@ -54,6 +54,18 @@ def can_start_multiple_machines():
 
 
 @istest
+def machines_started_at_the_same_time_can_access_each_other_directly_by_name():
+    requests = [
+        peachtree.request_machine("first", image_name=_IMAGE_NAME),
+        peachtree.request_machine("second", image_name=_IMAGE_NAME),
+    ]
+    with provider_with_user_networking() as provider:
+        with provider.start_many(requests) as machines:
+            first_machine, second_machine = machines[0], machines[1]
+            first_machine.shell().run(["ping", "second", "-c1"])
+
+
+@istest
 def running_cron_kills_any_running_machines_past_timeout():
     with provider_with_user_networking() as provider:
         with provider.start(_IMAGE_NAME, timeout=0) as machine:

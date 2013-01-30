@@ -15,7 +15,7 @@ _IMAGE_NAME="ubuntu-precise-amd64"
 
 @test
 def can_run_commands_on_machine(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         shell = machine.shell()
         result = shell.run(["echo", "Hello there"])
         assert_equals("Hello there\n", result.output)
@@ -23,7 +23,7 @@ def can_run_commands_on_machine(provider):
 
 @test
 def can_run_commands_on_machine_as_root(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         shell = machine.root_shell()
         shell.run(["sh", "-c", "echo hello there > /root/hello"])
         result = shell.run(["cat", "/root/hello"])
@@ -32,14 +32,14 @@ def can_run_commands_on_machine_as_root(provider):
 
 @test
 def machine_is_not_running_after_context_manager_for_machine_exits(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         assert machine.is_running()
     assert not machine.is_running()
 
 
 @test
 def hostname_is_not_local(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         hostname = machine.hostname()
         assert_that(hostname, hamcrest.is_not(hamcrest.equal_to("localhost")))
         assert_that(hostname, hamcrest.is_not(hamcrest.starts_with("127")))
@@ -47,7 +47,7 @@ def hostname_is_not_local(provider):
         
 @test
 def can_ensure_that_ports_are_available(provider):
-    with provider.start(_IMAGE_NAME, public_ports=[50022]) as vm:
+    with provider.start(image_name=_IMAGE_NAME, public_ports=[50022]) as vm:
         root_shell = vm.root_shell()
         root_shell.run(["sh", "-c", "echo Port 50022 >> /etc/ssh/sshd_config"])
         root_shell.run(["service", "ssh", "restart"])
@@ -62,7 +62,7 @@ def can_ensure_that_ports_are_available(provider):
 
 @test
 def can_find_running_machine_using_identifier_and_then_stop_machine(provider):
-    with provider.start(_IMAGE_NAME) as original_machine:
+    with provider.start(image_name=_IMAGE_NAME) as original_machine:
         identifier = original_machine.identifier
         
         machine = provider.find_running_machine(identifier)
@@ -78,7 +78,7 @@ def find_running_machine_returns_none_if_there_is_no_such_machine(provider):
 
 @test
 def find_running_machine_returns_none_if_the_machine_has_been_shutdown(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         assert machine.is_running()
         machine.root_shell().run(["shutdown", "-h", "now"])
         
@@ -89,7 +89,7 @@ def find_running_machine_returns_none_if_the_machine_has_been_shutdown(provider)
 
 @test
 def can_run_commands_against_machine_found_using_identifier(provider):
-    with provider.start(_IMAGE_NAME) as original_machine:
+    with provider.start(image_name=_IMAGE_NAME) as original_machine:
         identifier = original_machine.identifier
         
         machine = provider.find_running_machine(identifier)
@@ -99,7 +99,7 @@ def can_run_commands_against_machine_found_using_identifier(provider):
         
 @test
 def can_restart_machine(provider):
-    with provider.start(_IMAGE_NAME) as machine:
+    with provider.start(image_name=_IMAGE_NAME) as machine:
         machine.shell().run(["touch", "/tmp/hello"])
         machine.restart()
         
@@ -115,7 +115,7 @@ def list_of_machines_is_empty_if_none_are_running(provider):
 
 @test
 def list_of_machines_include_ids(provider):
-    with provider.start(_IMAGE_NAME) as original_machine:
+    with provider.start(image_name=_IMAGE_NAME) as original_machine:
         running_machines = provider.list_running_machines()
         assert_that(
             running_machines,
@@ -124,7 +124,7 @@ def list_of_machines_include_ids(provider):
 
 @test
 def list_of_machines_include_image_name(provider):
-    with provider.start(_IMAGE_NAME):
+    with provider.start(image_name=_IMAGE_NAME):
         running_machines = provider.list_running_machines()
         assert_that(
             running_machines,
@@ -133,7 +133,7 @@ def list_of_machines_include_image_name(provider):
 
 @test
 def machines_that_have_stopped_are_not_in_list_of_running_machines(provider):
-    with provider.start(_IMAGE_NAME):
+    with provider.start(image_name=_IMAGE_NAME):
         pass
     running_machines = provider.list_running_machines()
     assert_equals([], running_machines)

@@ -4,6 +4,7 @@ import time
 import json
 import errno
 import itertools
+import random
 
 from concurrent import futures
 import spur
@@ -15,6 +16,7 @@ from .users import User
 from .machines import MachineWrapper
 from . import processes
 from . import dictobj
+from .request import request_machine
 
 local_shell = spur.LocalShell()
 
@@ -49,20 +51,50 @@ class Provider(object):
         self._networking = networking
         self._statuses = statuses
     
-    def start(self, image_name, public_ports=None, timeout=None):
+    def start(self, *args, **kwargs):
+        request = request_machine(name="peachtree", *args, **kwargs)
+        network = self._networking.start_single(request)
+        return self._start_with_network_settings(request, network)
+            
+    def start_many(self, requests):
+        # TODO: assert name of each request is unique
+        with futures.ThreadPoolExecutor(max_workers=4) as executor:
+            network = self._networking.start_network()
+            
+            def start(request):
+                network_settings = network.settings_for(request)
+                return self._start_with_network_settings(request, network_settings)
+            
+            machines = list(executor.map(start, requests))
+            
+            addresses = []
+            for index, machine in enumerate(machines):
+                eth1_address = "192.168.0.{0}".format(1 + index)
+                machine.root_shell().run(["ifconfig", "eth1", eth1_address])
+                addresses.append((requests[index].name, eth1_address))
+            
+            for machine in machines:
+                root_shell = machine.root_shell()
+                for hostname, address in addresses:
+                    root_shell.run(
+                        ["sh", "-c", "echo {0} {1} >> /etc/hosts".format(address, hostname)]
+                    )
+            
+            return MachineSet(machines)
+    
+    def _start_with_network_settings(self, request, network):
         identifier = str(uuid.uuid4())
-        public_ports = set([_GUEST_SSH_PORT] + (public_ports or []))
-        forwarded_ports = self._generate_forwarded_ports(public_ports)
         
         process_set = processes.start({})
-        network = self._networking.start_single(forwarded_ports, process_set)
-        self._invoker.start_process(image_name, network, process_set)
+        self._invoker.start_process(request.image_name, network, process_set)
         
         status = MachineStatus(
             identifier=identifier,
-            image_name=image_name,
-            forwarded_ports=forwarded_ports,
-            timeout=timeout,
+            image_name=request.image_name,
+            # TODO: either re-couple network, or find a better way of
+            # storing network details
+            forwarded_ports=network.forwarded_ports,
+            timeout=request.timeout,
             start_time=time.time(),
             process_set_run_dir=process_set.run_dir
         )
@@ -76,22 +108,6 @@ class Provider(object):
         except:
             machine.destroy()
             raise
-            
-    def start_many(self, requests):
-        with futures.ThreadPoolExecutor(max_workers=4) as executor:
-            return MachineSet(list(executor.map(self._start_request, requests)))
-    
-    def _start_request(self, request):
-        return self.start(request.image_name)
-    
-    def _generate_forwarded_ports(self, public_ports):
-        return dict(
-            (port, self._allocate_host_port(port))
-            for port in public_ports
-        )
-        
-    def _allocate_host_port(self, guest_port):
-        return starboard.find_local_free_tcp_port()
         
     def _wait_for_ssh(self, process_set, machine):
         def attempt_ssh_command():
@@ -160,16 +176,13 @@ class QemuInvoker(object):
         
     def start_process(self, image_name, network, process_set):
         image_path = self._images.image_path(image_name)
-        netdev_arg = network.qemu_netdev_arg()
         qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
             "-drive", "file={0},if=virtio".format(image_path),
-            "-netdev", "{0},id=guest0".format(netdev_arg),
-            "-device", "virtio-net-pci,netdev=guest0",
-        ]
+        ] + network.qemu_args()
         process_set.start({"qemu": qemu_command})
 
 
@@ -318,18 +331,62 @@ _GUEST_SSH_PORT = 22
 
 
 class UserNetworking(object):
-    def start_single(self, forwarded_ports, process_set):
-        return UserNetwork(forwarded_ports)
-
-
-class UserNetwork(object):
-    def __init__(self, forwarded_ports):
-        self._forwarded_ports = forwarded_ports
+    def start_single(self, request):
+        forwarded_ports = _generate_forwarded_ports(request.public_ports)
+        return UserNetworkSettings(forwarded_ports, [])
         
-    def qemu_netdev_arg(self):
+    def start_network(self):
+        port = starboard.find_local_free_tcp_port()
+        return UserNetwork(port)
+        
+        
+class UserNetwork(object):
+    def __init__(self, port):
+        self._port = port
+        
+    def settings_for(self, request):
+        forwarded_ports = _generate_forwarded_ports(request.public_ports)
+        # TODO: consider using TCP instead of UDP multicast
+        socket_args = _generate_network_args(
+            "guest-net-socket",
+            "socket,mcast=230.0.0.1:{0}".format(self._port),
+        )
+        return UserNetworkSettings(forwarded_ports, socket_args)
+
+
+class UserNetworkSettings(object):
+    def __init__(self, forwarded_ports, extra_args):
+        self.forwarded_ports = forwarded_ports
+        self._extra_args = extra_args
+        
+    def qemu_args(self):
         kvm_forward_ports = [
             "hostfwd=tcp::{0}-:{1}".format(host_port, guest_port)
             for guest_port, host_port
-            in self._forwarded_ports.iteritems()
+            in self.forwarded_ports.iteritems()
         ]
-        return "user," + ",".join(kvm_forward_ports)
+        return _generate_network_args(
+            "guest-net-user",
+            "user,{0}".format(",".join(kvm_forward_ports))
+        ) + self._extra_args
+
+
+def _generate_network_args(name, netdev):
+    mac_address_parts = [0x06] + [random.randint(0x00, 0xff) for i in range(5)]
+    mac_address = ":".join("{0:02x}".format(part) for part in mac_address_parts)
+    return [
+        "-netdev", "{0},id={1}".format(netdev, name),
+        "-device", "virtio-net-pci,netdev={0},mac={1}".format(name, mac_address),
+    ]
+
+    
+def _generate_forwarded_ports(public_ports):
+    public_ports = set([_GUEST_SSH_PORT] + public_ports)
+    return dict(
+        (port, _allocate_host_port(port))
+        for port in public_ports
+    )
+
+    
+def _allocate_host_port(guest_port):
+    return starboard.find_local_free_tcp_port()
