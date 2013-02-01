@@ -178,28 +178,48 @@ class QemuInvoker(object):
         self._images = images
         
     def start_process(self, image_name, network, process_set):
-        image_path = self._images.image_path(image_name)
+        image = self._images.image(image_name)
+        disk_args = []
+        for disk in image.disks:
+            disk_args += ["-drive", "file={0},if=virtio".format(disk)]
+        
         qemu_command = [
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
             "-m", "512",
-            "-drive", "file={0},if=virtio".format(image_path),
-        ] + network.qemu_args()
+        ] + disk_args + network.qemu_args()
         process_set.start({"qemu": qemu_command})
 
 
 class Images(object):
     def __init__(self, data_dir=None):
         self._data_dir = data_dir or _default_data_dir()
-        
+    
     def image_path(self, image_name):
-        return os.path.join(self._data_dir, "images/{0}.qcow2".format(image_name))
+        return os.path.join(self._data_dir, "images", image_name)
+    
+    def image(self, image_name):
+        image_dir = self.image_path(image_name)
+        with open(os.path.join(image_dir, "image.json")) as description_file:
+            description = json.load(description_file)
+        relative_disks = description["disks"]
+        disks = [
+            os.path.abspath(os.path.join(image_dir, relative_disk))
+            for relative_disk in relative_disks
+        ]
+        
+        return Image(disks)
 
+
+class Image(object):
+    def __init__(self, disks):
+        self.disks = disks
+    
     
 def _default_data_dir():
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-    return os.path.join(xdg_data_home, "peachtree/qemu")
+    return os.path.join(xdg_data_home, "peachtree-0.3/qemu")
     
 
 MachineStatus = dictobj.data_class("MachineStatus",
