@@ -119,20 +119,17 @@ def start_server(port, provider):
     config.add_route('machines', '/machines')
     config.add_view(machines, route_name='machines')
     
-    config.add_route('running_machine', '/machines/{identifier}')
-    config.add_view(running_machine, route_name='running_machine')
+    def add_machine_route(path, view):
+        name = path.replace("-", "_")
+        path_suffix = "/" + path if path else ""
+        config.add_route(name, '/machines/{identifier}' + path_suffix)
+        config.add_view(view, route_name=name)
     
-    config.add_route('is_running', '/machines/{identifier}/is-running')
-    config.add_view(is_running, route_name='is_running')
-    
-    config.add_route('public_port', '/machines/{identifier}/public-port')
-    config.add_view(public_port, route_name='public_port')
-    
-    config.add_route('restart', '/machines/{identifier}/restart')
-    config.add_view(restart, route_name='restart')
-    
-    config.add_route('destroy', '/machines/{identifier}/destroy')
-    config.add_view(destroy, route_name='destroy')
+    add_machine_route("", running_machine)
+    add_machine_route("is-running", is_running)
+    add_machine_route("public-port", public_port)
+    add_machine_route("restart", restart)
+    add_machine_route("destroy", destroy)
     
     app = config.make_wsgi_app()
     
