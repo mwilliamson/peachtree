@@ -58,6 +58,8 @@ def can_start_multiple_machines():
         with provider.start_many(requests) as machines:
             _assert_can_run_commands_on_machine(machines[0])
             _assert_can_run_commands_on_machine(machines[1])
+            _assert_can_run_commands_on_machine(machines["first"])
+            _assert_can_run_commands_on_machine(machines["second"])
 
 
 @istest

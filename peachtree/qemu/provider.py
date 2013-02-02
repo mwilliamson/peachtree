@@ -110,6 +110,7 @@ class Provider(object):
         self._invoker.start_process(image, network, process_set)
         
         status = MachineStatus(
+            name=request.name,
             identifier=identifier,
             image_name=request.image_name,
             # TODO: either re-couple network, or find a better way of
@@ -262,6 +263,7 @@ def _default_data_dir():
 MachineStatus = dictobj.data_class("MachineStatus",
     [
         "identifier",
+        "name",
         "image_name",
         "forwarded_ports",
         "start_time",
@@ -282,8 +284,17 @@ class MachineSet(object):
         for machine in self._machines:
             machine.destroy()
             
-    def __getitem__(self, index):
-        return self._machines[index]
+    def __getitem__(self, key):
+        if isinstance(key, basestring):
+            return next(
+                machine
+                for machine in self._machines
+                if machine.name == key
+            )
+        elif isinstance(key, (int, long)):
+            return self._machines[key]
+        else:
+            raise TypeError("Expected key to be string or integer")
 
 
 class Statuses(object):
@@ -353,6 +364,7 @@ def _create_machine(*args, **kwargs):
 class QemuMachine(object):
     def __init__(self, users, status, statuses):
         self._users = users
+        self.name = status.name
         self.image_name = status.image_name
         self.identifier = status.identifier
         self._process_set = processes.from_dir(status.process_set_run_dir)

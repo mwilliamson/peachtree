@@ -11,6 +11,7 @@ from . import wait
 class MachineWrapper(object):
     _delegates = [
         "identifier",
+        "name",
         "image_name",
         "hostname",
         "is_running",
