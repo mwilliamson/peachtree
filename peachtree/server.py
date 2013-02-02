@@ -120,16 +120,22 @@ def start_server(port, provider):
     
     config.add_route('start', '/start')
     config.add_view(start, route_name='start')
+    
     config.add_route('running_machine', '/running-machine')
     config.add_view(running_machine, route_name='running_machine')
+    
     config.add_route('running_machines', '/running-machines')
     config.add_view(running_machines, route_name='running_machines')
+    
     config.add_route('is_running', '/is-running')
     config.add_view(is_running, route_name='is_running')
+    
     config.add_route('public_port', '/public-port')
     config.add_view(public_port, route_name='public_port')
+    
     config.add_route('restart', '/restart')
     config.add_view(restart, route_name='restart')
+    
     config.add_route('destroy', '/destroy')
     config.add_view(destroy, route_name='destroy')
     
