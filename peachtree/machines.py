@@ -52,16 +52,17 @@ class MachineWrapper(object):
     
     def restart(self):
         tmp_file = os.path.join("/tmp/", str(uuid.uuid4()))
-        root_shell = self.root_shell()
-        root_shell.run(["touch", tmp_file])
-        root_shell.spawn(["reboot"])
+        with self.root_shell() as root_shell:
+            root_shell.run(["touch", tmp_file])
+            root_shell.spawn(["reboot"])
         for i in range(0, 20):
             try:
                 # TODO: automatic reconnection of shell
-                result = self.root_shell().run(
-                    ["test", "-f", tmp_file],
-                    allow_error=True
-                )
+                with self.root_shell() as root_shell:
+                    result = root_shell.run(
+                        ["test", "-f", tmp_file],
+                        allow_error=True
+                    )
                 if result.return_code == 1:
                     return
             except spur.ssh.ConnectionError:
