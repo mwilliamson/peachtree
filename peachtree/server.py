@@ -106,10 +106,7 @@ def start_server(port, provider):
             "name": machine.name,
             "imageName": machine.image_name,
             "hostname": machine.hostname(),
-            "users": [
-                {"username": user.username, "password": user.password, "isRoot": user.is_root}
-                for user in machine.users()
-            ],
+            "users": map(dictobj.obj_to_dict, machine.users()),
         }
     
     config = Configurator()
