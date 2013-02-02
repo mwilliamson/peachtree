@@ -38,5 +38,5 @@ class SshConfig(object):
             hostname=self.hostname,
             port=self.port,
             username=self.user,
-            password=self.password
+            password=self.password,
         )

@@ -132,13 +132,16 @@ class RemoteApi(object):
         )
 
     def _action(self, *args, **kwargs):
-        return self._post(*args, timeout=self._action_timeout, **kwargs)
+        return self._request(
+            "POST", *args, timeout=self._action_timeout, **kwargs)
         
     def _info(self, *args, **kwargs):
-        return self._post(*args, timeout=self._info_timeout, **kwargs)
+        return self._request(
+            "GET", *args, timeout=self._info_timeout, **kwargs)
 
-    def _post(self, path, data, timeout):
-        response = requests.post(
+    def _request(self, method, path, data, timeout):
+        response = requests.request(
+            method,
             self._url(path),
             data=json.dumps(data),
             headers={"Content-Type": "application/json"},

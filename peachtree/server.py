@@ -16,14 +16,21 @@ _default_timeout = 60 * 60
 
 
 def start_server(port, provider):
-    def view(func):
+    def http_post(func):
+        return view(func, "POST")
+        
+    def http_get(func):
+        return view(func, "GET")
+    
+    
+    def view(func, http_method):
         @functools.wraps(func)
         def respond(request):
-            if request.method == "POST":
+            if request.method == http_method:
                 # TODO: check some credentials
                 status_code, result = func(request.json_body)
             else:
-                status_code, result = 405, "POST required"
+                status_code, result = 405, "{0} required".format(http_method)
             return Response(
                 json.dumps(result),
                 status_code=status_code,
@@ -38,13 +45,13 @@ def start_server(port, provider):
     def not_found(result):
         return 404, result
     
-    @view
+    @http_post
     def start(body):
         machine_request = dictobj.dict_to_obj(body, MachineRequest)
         machine = provider.start(machine_request)
         return success(_describe_machine(machine))
         
-    @view
+    @http_get
     def running_machine(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
@@ -53,19 +60,19 @@ def start_server(port, provider):
         else:
             return success(_describe_machine(machine))
             
-    @view
+    @http_get
     def running_machines(post):
         machines = provider.list_running_machines()
         return success(map(_describe_machine, machines))
     
-    @view
+    @http_get
     def is_running(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
         is_running = machine is not None
         return success({"isRunning": is_running})
     
-    @view
+    @http_get
     def public_port(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
@@ -76,7 +83,7 @@ def start_server(port, provider):
             public_port = machine.public_port(guest_port)
             return success({"port": public_port})
         
-    @view
+    @http_post
     def restart(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
@@ -86,7 +93,7 @@ def start_server(port, provider):
             machine.restart()
             return success({"status": "OK"})
         
-    @view
+    @http_post
     def destroy(post):
         identifier = post.get("identifier")
         machine = provider.find_running_machine(identifier)
