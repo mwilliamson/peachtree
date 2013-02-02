@@ -57,6 +57,7 @@ def _create_machine(*args, **kwargs):
 class RemoteMachine(object):
     def __init__(self, desc, api):
         self.identifier = desc["identifier"]
+        self.name = desc["name"]
         self.image_name = desc["imageName"]
         self._hostname = desc["hostname"]
         self._users = [dictobj.dict_to_obj(user, User) for user in desc["users"]]

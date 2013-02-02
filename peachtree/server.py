@@ -100,6 +100,7 @@ def start_server(port, provider):
         
         return {
             "identifier": machine.identifier,
+            "name": machine.name,
             "imageName": machine.image_name,
             "hostname": machine.hostname(),
             "users": [
