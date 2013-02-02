@@ -17,7 +17,7 @@ def main():
         command.create_parser(subparser)
     
     args = parser.parse_args()
-    provider_name = args.provider
+    provider_name = "qemu"
     if provider_name in peachtree.providers:
         args.func(peachtree.providers[provider_name](), args)
     else:
