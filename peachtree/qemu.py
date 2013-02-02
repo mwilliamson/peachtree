@@ -187,7 +187,7 @@ class QemuInvoker(object):
             self._command, "-machine", "accel={0}".format(self._accel_arg),
             "-snapshot",
             "-nographic", "-serial", "none",
-            "-m", "512",
+            "-m", str(image.memory_size),
         ] + disk_args + network.qemu_args()
         process_set.start({"qemu": qemu_command})
 
@@ -208,13 +208,15 @@ class Images(object):
             os.path.abspath(os.path.join(image_dir, relative_disk))
             for relative_disk in relative_disks
         ]
+        memory_size = description.get("memory", 512)
         
-        return Image(disks)
+        return Image(disks, memory_size)
 
 
 class Image(object):
-    def __init__(self, disks):
+    def __init__(self, disks, memory_size):
         self.disks = disks
+        self.memory_size = memory_size
     
     
 def _default_data_dir():
