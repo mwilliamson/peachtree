@@ -137,7 +137,8 @@ class Provider(object):
                 wait.wait_until_not(process_set.any_running, timeout=1, wait_time=0.1)
                 output = process_set.all_output()
                 raise RuntimeError("Process died, output:\n{0}".format(output))
-            machine.root_shell().run(["true"])
+            with machine.root_shell() as shell:
+                shell.run(["true"])
             
         wait.wait_until_successful(
             attempt_ssh_command,
