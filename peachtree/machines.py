@@ -5,6 +5,7 @@ import time
 import spur.ssh
 
 from .sshconfig import SshConfig
+from . import wait
 
 
 class MachineWrapper(object):
@@ -55,7 +56,8 @@ class MachineWrapper(object):
         with self.root_shell() as root_shell:
             root_shell.run(["touch", tmp_file])
             root_shell.spawn(["reboot"])
-        for i in range(0, 20):
+            
+        def has_restarted():
             try:
                 # TODO: automatic reconnection of shell
                 with self.root_shell() as root_shell:
@@ -63,13 +65,15 @@ class MachineWrapper(object):
                         ["test", "-f", tmp_file],
                         allow_error=True
                     )
-                if result.return_code == 1:
-                    return
+                return result.return_code == 1
             except spur.ssh.ConnectionError:
-                pass
-            time.sleep(1)
-        raise RuntimeError("Failed to restart VM")
-        
+                return False
+            
+        wait.wait_until(
+            has_restarted, timeout=30, wait_time=1,
+            error_message="Failed to restart VM"
+        )
+            
     def _find_user(self, username):
         
         if username is None:
