@@ -28,7 +28,7 @@ def start_server(port, provider):
         def respond(request):
             if request.method == http_method:
                 # TODO: check some credentials
-                status_code, result = func(request.json_body)
+                status_code, result = func(request.json_body, **request.matchdict)
             else:
                 status_code, result = 405, "{0} required".format(http_method)
             return Response(
@@ -52,8 +52,7 @@ def start_server(port, provider):
         return success(_describe_machine(machine))
         
     @http_get
-    def running_machine(post):
-        identifier = post.get("identifier")
+    def running_machine(post, identifier):
         machine = provider.find_running_machine(identifier)
         if machine is None:
             return not_found(None)
@@ -121,10 +120,10 @@ def start_server(port, provider):
     config.add_route('start', '/start')
     config.add_view(start, route_name='start')
     
-    config.add_route('running_machine', '/running-machine')
+    config.add_route('running_machine', '/machines/{identifier}')
     config.add_view(running_machine, route_name='running_machine')
     
-    config.add_route('running_machines', '/running-machines')
+    config.add_route('running_machines', '/machines')
     config.add_view(running_machines, route_name='running_machines')
     
     config.add_route('is_running', '/is-running')

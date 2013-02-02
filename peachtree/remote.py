@@ -1,4 +1,5 @@
 import requests
+import urllib
 import json
 
 from .machines import MachineWrapper
@@ -99,13 +100,10 @@ class RemoteApi(object):
         )
         
     def running_machine(self, identifier):
-        return self._info(
-            "running-machine",
-            data={"identifier": identifier},
-        )
+        return self._info("machines/{0}".format(urllib.quote(identifier)))
         
     def running_machines(self):
-        return self._info("running-machines", data=None)
+        return self._info("machines", data=None)
         
     def is_running(self, identifier):
         return self._info(
@@ -139,7 +137,7 @@ class RemoteApi(object):
         return self._request(
             "GET", *args, timeout=self._info_timeout, **kwargs)
 
-    def _request(self, method, path, data, timeout):
+    def _request(self, method, path, timeout, data=None):
         response = requests.request(
             method,
             self._url(path),
