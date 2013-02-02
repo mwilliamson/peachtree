@@ -71,8 +71,7 @@ def start_server(port, provider):
         return success({"isRunning": is_running})
     
     @http_get
-    def public_port(post):
-        identifier = post.get("identifier")
+    def public_port(post, identifier):
         machine = provider.find_running_machine(identifier)
         if machine is None:
             return not_found(None)
@@ -123,7 +122,7 @@ def start_server(port, provider):
     config.add_route('is_running', '/machines/{identifier}/is-running')
     config.add_view(is_running, route_name='is_running')
     
-    config.add_route('public_port', '/public-port')
+    config.add_route('public_port', '/machines/{identifier}/public-port')
     config.add_view(public_port, route_name='public_port')
     
     config.add_route('restart', '/machines/{identifier}/restart')

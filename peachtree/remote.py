@@ -111,8 +111,8 @@ class RemoteApi(object):
         
     def public_port(self, identifier, port):
         return self._info(
-            "public-port",
-            data={"identifier": identifier, "guest-port": port},
+            self._machine_path(identifier, "public-port"),
+            data={"guest-port": port},
         )["port"]
         
     def restart(self, identifier):
