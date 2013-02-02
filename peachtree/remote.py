@@ -116,10 +116,7 @@ class RemoteApi(object):
         )["port"]
         
     def restart(self, identifier):
-        return self._action(
-            "restart",
-            data={"identifier": identifier},
-        )
+        self._action(self._machine_path(identifier, "restart"))
         
     def destroy(self, identifier):
         return self._action(

@@ -82,8 +82,7 @@ def start_server(port, provider):
             return success({"port": public_port})
         
     @http_post
-    def restart(post):
-        identifier = post.get("identifier")
+    def restart(post, identifier):
         machine = provider.find_running_machine(identifier)
         if machine is None:
             return not_found(None)
@@ -131,7 +130,7 @@ def start_server(port, provider):
     config.add_route('public_port', '/public-port')
     config.add_view(public_port, route_name='public_port')
     
-    config.add_route('restart', '/restart')
+    config.add_route('restart', '/machines/{identifier}/restart')
     config.add_view(restart, route_name='restart')
     
     config.add_route('destroy', '/destroy')
