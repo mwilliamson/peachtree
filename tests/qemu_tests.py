@@ -14,15 +14,21 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 
 _IMAGE_NAME="ubuntu-precise-amd64"
+_WINDOWS_IMAGE_NAME="windows-server-2012-x86-64"
 
 
 @contextlib.contextmanager
 def provider_with_temp_data_dir(networking):
     with create_temporary_dir() as data_dir:
-        image_path = peachtree.qemu.Images().image_path(_IMAGE_NAME)
-        temp_image_path = peachtree.qemu.Images(data_dir).image_path(_IMAGE_NAME)
-        os.makedirs(os.path.dirname(temp_image_path))
-        os.symlink(image_path, temp_image_path)
+        def _pick_image(name):
+            image_path = peachtree.qemu.Images().image_path(name)
+            temp_image_path = peachtree.qemu.Images(data_dir).image_path(name)
+            if not os.path.exists(os.path.dirname(temp_image_path)):
+                os.makedirs(os.path.dirname(temp_image_path))
+            os.symlink(image_path, temp_image_path)    
+        
+        _pick_image(_IMAGE_NAME)
+        _pick_image(_WINDOWS_IMAGE_NAME)
         
         provider = peachtree.qemu_provider(networking=networking, data_dir=data_dir)
         try:
@@ -30,6 +36,7 @@ def provider_with_temp_data_dir(networking):
         finally:
             for machine in provider.list_running_machines():
                 machine.destroy()
+
 
 def provider_with_user_networking():
     return provider_with_temp_data_dir(peachtree.qemu.UserNetworking())
@@ -63,6 +70,19 @@ def machines_started_at_the_same_time_can_access_each_other_directly_by_name():
         with provider.start_many(requests) as machines:
             first_machine, second_machine = machines[0], machines[1]
             first_machine.shell().run(["ping", "second", "-c1"])
+
+
+@istest
+def windows_machines_can_join_virtual_network():
+    requests = [
+        peachtree.request_machine("linux", image_name=_IMAGE_NAME),
+        peachtree.request_machine("windows", image_name=_WINDOWS_IMAGE_NAME),
+    ]
+    with provider_with_user_networking() as provider:
+        with provider.start_many(requests) as machines:
+            # TODO: change to machines["windows"]
+            windows_machine = machines[1]
+            windows_machine.shell().run(["ping", "linux", "-n", "1"])
 
 
 @istest

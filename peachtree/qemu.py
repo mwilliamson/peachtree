@@ -5,6 +5,7 @@ import json
 import errno
 import itertools
 import random
+import re
 
 from concurrent import futures
 import spur
@@ -73,15 +74,43 @@ class Provider(object):
             
             addresses = []
             for index, machine in enumerate(machines):
+                request = requests[index]
+                
                 eth1_address = "192.168.0.{0}".format(1 + index)
-                machine.root_shell().run(["ifconfig", "eth1", eth1_address])
-                addresses.append((requests[index].name, eth1_address))
+                
+                image = self._images.image(machine.image_name)
+                os_family = image.operating_system_family
+                root_shell = machine.root_shell()
+                if os_family == "linux":
+                    root_shell.run(["ifconfig", "eth1", eth1_address])
+                elif os_family == "windows":
+                    _windows_set_ip_address(root_shell, eth1_address)
+                else:
+                    raise ValueError(
+                        "Unrecognised operating system family: {0}"
+                            .format(os_family)
+                    )
+                addresses.append((request.name, eth1_address))
             
             for machine in machines:
+                image = self._images.image(machine.image_name)
+                # TODO: handle differing network config between os families more elegantly
+                os_family = image.operating_system_family
+                if os_family == "linux":
+                    hosts_path = "/etc/hosts"
+                elif os_family == "windows":
+                    hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
+                else:
+                    raise ValueError(
+                        "Unrecognised operating system family: {0}"
+                            .format(os_family)
+                    )
+                    
                 root_shell = machine.root_shell()
                 for hostname, address in addresses:
+                    # TODO: properly escape hosts_path
                     root_shell.run(
-                        ["sh", "-c", "echo {0} {1} >> /etc/hosts".format(address, hostname)]
+                        ["sh", "-c", "echo {0} {1} >> '{2}'".format(address, hostname, hosts_path)]
                     )
             
             return MachineSet(machines)
@@ -174,6 +203,30 @@ class Provider(object):
                 self._statuses.remove(status.identifier)
 
 
+def _windows_set_ip_address(root_shell, address):
+    field_separator_regex = re.compile("\s+")
+    show_interfaces_output = root_shell.run([
+        "netsh", "interface", "ip", "show", "interface"
+    ]).output
+    lines = [
+        line.strip()
+        for line in show_interfaces_output.split("\n")
+        if re.search(r"[^\s\-]", line)
+    ]
+    headers = field_separator_regex.split(lines[0])
+    name_column_index = headers.index("Name")
+    
+    interface_names = [
+        field_separator_regex.split(line)[name_column_index]
+        for line in lines[1:] # Skip headers
+    ]
+    
+    #~ for interface_name in interface_names:
+    root_shell.run(
+        ["netsh", "interface", "ip", "set", "address", "Ethernet 3", "static", address, "255.255.255.0"]
+    )
+
+
 class QemuInvoker(object):
     def __init__(self, command, accel_arg):
         self._command = command
@@ -224,14 +277,17 @@ class Images(object):
                 for user_json in users_json
             ]
             
-        return Image(disks, memory_size, users)
+        operating_system_family = description.get("operatingSystemFamily", "linux")
+            
+        return Image(disks, memory_size, users, operating_system_family)
 
 
 class Image(object):
-    def __init__(self, disks, memory_size, users):
+    def __init__(self, disks, memory_size, users, operating_system_family):
         self.disks = disks
         self.memory_size = memory_size
         self.users = users
+        self.operating_system_family = operating_system_family
     
     
 def _default_data_dir():
