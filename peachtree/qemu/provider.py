@@ -78,22 +78,22 @@ class Provider(object):
                 
                 eth1_address = "192.168.0.{0}".format(1 + index)
                 netmask = "255.255.255.0"
-                root_shell = machine.root_shell()
-                config = self._guest_network_config_for(machine)
-                config.configure_internal_interface(
-                    root_shell, eth1_address, netmask
-                )
-                addresses.append((request.name, eth1_address))
+                with machine.root_shell() as root_shell:
+                    config = self._guest_network_config_for(machine)
+                    config.configure_internal_interface(
+                        root_shell, eth1_address, netmask
+                    )
+                    addresses.append((request.name, eth1_address))
             
             for machine in machines:
                 config = self._guest_network_config_for(machine)
-                root_shell = machine.root_shell()
-                for hostname, address in addresses:
-                    # TODO: properly escape hosts_path
-                    sh_command = "echo {0} {1} >> '{2}'".format(
-                        address, hostname, config.hosts_path
-                    )
-                    root_shell.run(["sh", "-c", sh_command])
+                with machine.root_shell() as root_shell:
+                    for hostname, address in addresses:
+                        # TODO: properly escape hosts_path
+                        sh_command = "echo {0} {1} >> '{2}'".format(
+                            address, hostname, config.hosts_path
+                        )
+                        root_shell.run(["sh", "-c", sh_command])
             
             return MachineSet(machines)
     
