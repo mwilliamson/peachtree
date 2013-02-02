@@ -78,26 +78,29 @@ class Provider(object):
                 
                 eth1_address = "192.168.0.{0}".format(1 + index)
                 netmask = "255.255.255.0"
-                
-                image = self._images.image(machine.image_name)
-                os_family = image.operating_system_family
                 root_shell = machine.root_shell()
-                config = networkconfig.network_config(os_family)
-                config.configure_internal_interface(root_shell, eth1_address, netmask)
+                config = self._guest_network_config_for(machine)
+                config.configure_internal_interface(
+                    root_shell, eth1_address, netmask
+                )
                 addresses.append((request.name, eth1_address))
             
             for machine in machines:
-                image = self._images.image(machine.image_name)
-                os_family = image.operating_system_family
-                config = networkconfig.network_config(os_family)
+                config = self._guest_network_config_for(machine)
                 root_shell = machine.root_shell()
                 for hostname, address in addresses:
                     # TODO: properly escape hosts_path
-                    root_shell.run(
-                        ["sh", "-c", "echo {0} {1} >> '{2}'".format(address, hostname, config.hosts_path)]
+                    sh_command = "echo {0} {1} >> '{2}'".format(
+                        address, hostname, config.hosts_path
                     )
+                    root_shell.run(["sh", "-c", sh_command])
             
             return MachineSet(machines)
+    
+    def _guest_network_config_for(self, machine):
+        image = self._images.image(machine.image_name)
+        os_family = image.operating_system_family
+        return networkconfig.network_config(os_family)
     
     def _start_with_network_settings(self, request, network):
         image = self._images.image(request.image_name)
