@@ -12,12 +12,12 @@ import spur
 import spur.ssh
 import starboard
 
-from . import wait
-from .users import User
-from .machines import MachineWrapper
-from . import processes
-from . import dictobj
-from .request import request_machine, MachineRequest
+from .. import wait
+from ..users import User
+from ..machines import MachineWrapper
+from .. import processes
+from .. import dictobj
+from ..request import request_machine, MachineRequest
 
 local_shell = spur.LocalShell()
 
