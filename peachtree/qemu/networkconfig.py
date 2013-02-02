@@ -22,7 +22,10 @@ class WindowsNetworkConfig(object):
     hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
     
     def configure_internal_interface(self, root_shell, ip_address, netmask):
-        internal_interface_name = self._find_internal_interface_name(root_shell)
+        internal_interface_name = wait.wait_until(
+            lambda: self._find_internal_interface_name(root_shell),
+            timeout=30, wait_time=0.5
+        )
         root_shell.run([
             "netsh", "interface", "ip", "set", "address",
             internal_interface_name, "static", ip_address, netmask
