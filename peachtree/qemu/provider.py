@@ -5,7 +5,6 @@ import json
 import errno
 import itertools
 import random
-import re
 
 from concurrent import futures
 import spur
@@ -18,6 +17,7 @@ from ..machines import MachineWrapper
 from .. import processes
 from .. import dictobj
 from ..request import request_machine, MachineRequest
+from . import networkconfig
 
 local_shell = spur.LocalShell()
 
@@ -77,40 +77,24 @@ class Provider(object):
                 request = requests[index]
                 
                 eth1_address = "192.168.0.{0}".format(1 + index)
+                netmask = "255.255.255.0"
                 
                 image = self._images.image(machine.image_name)
                 os_family = image.operating_system_family
                 root_shell = machine.root_shell()
-                if os_family == "linux":
-                    root_shell.run(["ifconfig", "eth1", eth1_address])
-                elif os_family == "windows":
-                    _windows_set_ip_address(root_shell, eth1_address)
-                else:
-                    raise ValueError(
-                        "Unrecognised operating system family: {0}"
-                            .format(os_family)
-                    )
+                config = networkconfig.network_config(os_family)
+                config.configure_internal_interface(root_shell, eth1_address, netmask)
                 addresses.append((request.name, eth1_address))
             
             for machine in machines:
                 image = self._images.image(machine.image_name)
-                # TODO: handle differing network config between os families more elegantly
                 os_family = image.operating_system_family
-                if os_family == "linux":
-                    hosts_path = "/etc/hosts"
-                elif os_family == "windows":
-                    hosts_path = r"C:\Windows\System32\drivers\etc\hosts"
-                else:
-                    raise ValueError(
-                        "Unrecognised operating system family: {0}"
-                            .format(os_family)
-                    )
-                    
+                config = networkconfig.network_config(os_family)
                 root_shell = machine.root_shell()
                 for hostname, address in addresses:
                     # TODO: properly escape hosts_path
                     root_shell.run(
-                        ["sh", "-c", "echo {0} {1} >> '{2}'".format(address, hostname, hosts_path)]
+                        ["sh", "-c", "echo {0} {1} >> '{2}'".format(address, hostname, config.hosts_path)]
                     )
             
             return MachineSet(machines)
@@ -201,46 +185,6 @@ class Provider(object):
             machine = self._machine_from_status(status)
             if not machine.is_running():
                 self._statuses.remove(status.identifier)
-
-
-def _windows_set_ip_address(root_shell, address):
-    field_separator_regex = re.compile("\s{2,}")
-    show_interfaces_output = root_shell.run([
-        "netsh", "interface", "ip", "show", "interface"
-    ]).output
-    lines = [
-        line.strip()
-        for line in show_interfaces_output.split("\n")
-        if re.search(r"[^\s\-]", line)
-    ]
-    headers = field_separator_regex.split(lines[0])
-    name_column_index = headers.index("Name")
-    
-    interface_names = [
-        field_separator_regex.split(line)[name_column_index]
-        for line in lines[1:] # Skip headers
-    ]
-    
-    real_interface_names = filter(
-        lambda name: "loopback" not in name.lower(),
-        interface_names
-    )
-    
-    # Find interface without DHCP
-    for interface_name in real_interface_names:
-        config_result = root_shell.run([
-            "netsh", "interface", "ip", "show", "config",
-            "name={0}".format(interface_name)
-        ])
-        if re.search(r"DNS servers configured through DHCP:\s+None", config_result.output):
-            internal_interface_name = interface_name
-            break
-        
-    netmask = "255.255.255.0"
-    root_shell.run([
-        "netsh", "interface", "ip", "set", "address",
-        internal_interface_name, "static", address, netmask
-    ])
 
 
 class QemuInvoker(object):
