@@ -204,7 +204,7 @@ class Provider(object):
 
 
 def _windows_set_ip_address(root_shell, address):
-    field_separator_regex = re.compile("\s+")
+    field_separator_regex = re.compile("\s{2,}")
     show_interfaces_output = root_shell.run([
         "netsh", "interface", "ip", "show", "interface"
     ]).output
@@ -221,10 +221,26 @@ def _windows_set_ip_address(root_shell, address):
         for line in lines[1:] # Skip headers
     ]
     
-    #~ for interface_name in interface_names:
-    root_shell.run(
-        ["netsh", "interface", "ip", "set", "address", "Ethernet 3", "static", address, "255.255.255.0"]
+    real_interface_names = filter(
+        lambda name: "loopback" not in name.lower(),
+        interface_names
     )
+    
+    # Find interface without DHCP
+    for interface_name in real_interface_names:
+        config_result = root_shell.run([
+            "netsh", "interface", "ip", "show", "config",
+            "name={0}".format(interface_name)
+        ])
+        if re.search(r"DNS servers configured through DHCP:\s+None", config_result.output):
+            internal_interface_name = interface_name
+            break
+        
+    netmask = "255.255.255.0"
+    root_shell.run([
+        "netsh", "interface", "ip", "set", "address",
+        internal_interface_name, "static", address, netmask
+    ])
 
 
 class QemuInvoker(object):
