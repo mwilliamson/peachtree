@@ -91,8 +91,7 @@ def start_server(port, provider):
             return success({"status": "OK"})
         
     @http_post
-    def destroy(post):
-        identifier = post.get("identifier")
+    def destroy(post, identifier):
         machine = provider.find_running_machine(identifier)
         if machine is not None:
             machine.destroy()
@@ -133,7 +132,7 @@ def start_server(port, provider):
     config.add_route('restart', '/machines/{identifier}/restart')
     config.add_view(restart, route_name='restart')
     
-    config.add_route('destroy', '/destroy')
+    config.add_route('destroy', '/machines/{identifier}/destroy')
     config.add_view(destroy, route_name='destroy')
     
     app = config.make_wsgi_app()
