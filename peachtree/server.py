@@ -44,12 +44,23 @@ def start_server(port, provider):
         
     def not_found(result):
         return 404, result
+        
+    def machines(request):
+        if request.method == "POST":
+            return start(request)
+        else:
+            return running_machines(request)
     
     @http_post
     def start(body):
         machine_request = dictobj.dict_to_obj(body, MachineRequest)
         machine = provider.start(machine_request)
         return success(_describe_machine(machine))
+            
+    @http_get
+    def running_machines(post):
+        machines = provider.list_running_machines()
+        return success(map(_describe_machine, machines))
         
     @http_get
     def running_machine(post, identifier):
@@ -58,11 +69,6 @@ def start_server(port, provider):
             return not_found(None)
         else:
             return success(_describe_machine(machine))
-            
-    @http_get
-    def running_machines(post):
-        machines = provider.list_running_machines()
-        return success(map(_describe_machine, machines))
     
     @http_get
     def is_running(post, identifier):
@@ -110,14 +116,11 @@ def start_server(port, provider):
     
     config = Configurator()
     
-    config.add_route('start', '/start')
-    config.add_view(start, route_name='start')
+    config.add_route('machines', '/machines')
+    config.add_view(machines, route_name='machines')
     
     config.add_route('running_machine', '/machines/{identifier}')
     config.add_view(running_machine, route_name='running_machine')
-    
-    config.add_route('running_machines', '/machines')
-    config.add_view(running_machines, route_name='running_machines')
     
     config.add_route('is_running', '/machines/{identifier}/is-running')
     config.add_view(is_running, route_name='is_running')

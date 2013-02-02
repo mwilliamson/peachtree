@@ -95,7 +95,7 @@ class RemoteApi(object):
         
     def start(self, request):
         return self._action(
-            "start",
+            "machines",
             data=dictobj.obj_to_dict(request),
         )
         
