@@ -33,9 +33,9 @@ def qemu_provider(command=None, accel_arg=None, networking=None, data_dir=None):
         
     data_dir = data_dir or _default_data_dir()
     images = Images(data_dir)
-    invoker = QemuInvoker(command, accel_arg, images)
+    invoker = QemuInvoker(command, accel_arg)
     statuses = Statuses(os.path.join(data_dir, "status"))
-    return Provider(invoker, networking, statuses)
+    return Provider(invoker, images, networking, statuses)
 
 
 def _find_qemu_command():
@@ -46,8 +46,9 @@ def _find_qemu_command():
 
 
 class Provider(object):
-    def __init__(self, invoker, networking, statuses):
+    def __init__(self, invoker, images, networking, statuses):
         self._invoker = invoker
+        self._images = images
         self._networking = networking
         self._statuses = statuses
     
@@ -86,10 +87,11 @@ class Provider(object):
             return MachineSet(machines)
     
     def _start_with_network_settings(self, request, network):
+        image = self._images.image(request.image_name)
         identifier = str(uuid.uuid4())
         
         process_set = processes.start({})
-        self._invoker.start_process(request.image_name, network, process_set)
+        self._invoker.start_process(image, network, process_set)
         
         status = MachineStatus(
             identifier=identifier,
@@ -103,7 +105,7 @@ class Provider(object):
         )
         
         self._statuses.write(status)
-        machine = _create_machine(status, self._statuses)
+        machine = _create_machine(image.users, status, self._statuses)
         
         try:
             self._wait_for_ssh(process_set, machine)
@@ -145,7 +147,8 @@ class Provider(object):
             return self._machine_from_status(status)
         
     def _machine_from_status(self, status):
-        return _create_machine(status, self._statuses)
+        image = self._images.image(status.image_name)
+        return _create_machine(image.users, status, self._statuses)
     
     def list_running_machines(self):
         statuses = self._statuses.read_all()
@@ -172,13 +175,11 @@ class Provider(object):
 
 
 class QemuInvoker(object):
-    def __init__(self, command, accel_arg, images):
+    def __init__(self, command, accel_arg):
         self._command = command
         self._accel_arg = accel_arg
-        self._images = images
         
-    def start_process(self, image_name, network, process_set):
-        image = self._images.image(image_name)
+    def start_process(self, image, network, process_set):
         disk_args = []
         for disk in image.disks:
             disk_args += ["-drive", "file={0},if=virtio".format(disk)]
@@ -210,13 +211,27 @@ class Images(object):
         ]
         memory_size = description.get("memory", 512)
         
-        return Image(disks, memory_size)
+        users_json = description.get("users", None)
+        if users_json is None:
+            password = "password1"
+            users = [
+                User("qemu-user", password, is_root=False),
+                User("root", password, is_root=True),
+            ]
+        else:
+            users = [
+                dictobj.dict_to_obj(user_json, User)
+                for user_json in users_json
+            ]
+            
+        return Image(disks, memory_size, users)
 
 
 class Image(object):
-    def __init__(self, disks, memory_size):
+    def __init__(self, disks, memory_size, users):
         self.disks = disks
         self.memory_size = memory_size
+        self.users = users
     
     
 def _default_data_dir():
@@ -316,13 +331,8 @@ def _create_machine(*args, **kwargs):
 
 
 class QemuMachine(object):
-    _password = "password1"
-    _users = [
-        User("qemu-user", _password, is_root=False),
-        User("root", _password, is_root=True),
-    ]
-    
-    def __init__(self, status, statuses):
+    def __init__(self, users, status, statuses):
+        self._users = users
         self.image_name = status.image_name
         self.identifier = status.identifier
         self._process_set = processes.from_dir(status.process_set_run_dir)
