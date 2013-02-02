@@ -100,16 +100,14 @@ class RemoteApi(object):
         )
         
     def running_machine(self, identifier):
-        return self._info("machines/{0}".format(urllib.quote(identifier)))
+        return self._info(self._machine_path(identifier))
         
     def running_machines(self):
         return self._info("machines", data=None)
         
     def is_running(self, identifier):
-        return self._info(
-            "is-running",
-            data={"identifier": identifier},
-        )["isRunning"]
+        response = self._info(self._machine_path(identifier, "is-running"))
+        return response["isRunning"]
         
     def public_port(self, identifier, port):
         return self._info(
@@ -152,4 +150,11 @@ class RemoteApi(object):
 
     def _url(self, path):
         return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))
+        
+    def _machine_path(self, identifier, extra=None):
+        path = "machines/{0}".format(urllib.quote(identifier))
+        if extra is None:
+            return path
+        else:
+            return "{0}/{1}".format(path, extra)
         
