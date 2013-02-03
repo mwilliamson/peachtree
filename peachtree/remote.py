@@ -13,7 +13,7 @@ def remote_provider(url=None, hostname=None, port=None):
         if hostname is not None and port is not None:
             url = "http://{0}:{1}/".format(hostname, port)
         else:
-            raise TypeError("Must provider url or hostname and port")
+            raise TypeError("Must provide url or hostname and port")
     return RemoteProvider(url)
 
 
