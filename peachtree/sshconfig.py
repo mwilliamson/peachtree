@@ -1,4 +1,5 @@
 import spur
+import spur.ssh
 
 
 _fields = [
@@ -39,4 +40,5 @@ class SshConfig(object):
             port=self.port,
             username=self.user,
             password=self.password,
+            missing_host_key=spur.ssh.MissingHostKey.accept,
         )
