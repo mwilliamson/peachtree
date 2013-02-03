@@ -3,7 +3,6 @@ import uuid
 import time
 import json
 import errno
-import itertools
 import random
 
 from concurrent import futures

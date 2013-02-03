@@ -7,7 +7,6 @@ from wsgiref.simple_server import make_server, WSGIServer
 from pyramid.config import Configurator
 from pyramid.response import Response
 
-from . import sshconfig
 from . import dictobj
 from .request import MachineRequest
 
@@ -103,9 +102,6 @@ def start_server(port, provider):
         return success({"status": "OK"})
     
     def _describe_machine(machine):
-        ssh_config = machine.ssh_config()
-        root_ssh_config = machine.ssh_config("root")
-        
         return {
             "identifier": machine.identifier,
             "name": machine.name,
