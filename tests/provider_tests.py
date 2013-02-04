@@ -38,9 +38,9 @@ def machine_is_not_running_after_context_manager_for_machine_exits(provider):
 
 
 @test
-def hostname_is_not_local(provider):
+def external_hostname_is_not_local(provider):
     with provider.start(_IMAGE_NAME) as machine:
-        hostname = machine.hostname()
+        hostname = machine.external_hostname()
         assert_that(hostname, hamcrest.is_not(hamcrest.equal_to("localhost")))
         assert_that(hostname, hamcrest.is_not(hamcrest.starts_with("127")))
 

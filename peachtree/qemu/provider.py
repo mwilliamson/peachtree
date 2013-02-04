@@ -397,7 +397,7 @@ class QemuMachine(object):
     def public_port(self, guest_port):
         return self._forwarded_ports.get(guest_port, None)
         
-    def hostname(self):
+    def external_hostname(self):
         return starboard.find_local_hostname()
         
     def users(self):

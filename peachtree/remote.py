@@ -60,12 +60,12 @@ class RemoteMachine(object):
         self.identifier = desc["identifier"]
         self.name = desc["name"]
         self.image_name = desc["imageName"]
-        self._hostname = desc["hostname"]
+        self._external_hostname = desc["externalHostname"]
         self._users = [dictobj.dict_to_obj(user, User) for user in desc["users"]]
         self._api = api
     
-    def hostname(self):
-        return self._hostname
+    def external_hostname(self):
+        return self._external_hostname
         
     def users(self):
         return self._users

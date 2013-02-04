@@ -106,7 +106,7 @@ def start_server(port, provider):
             "identifier": machine.identifier,
             "name": machine.name,
             "imageName": machine.image_name,
-            "hostname": machine.hostname(),
+            "externalHostname": machine.external_hostname(),
             "users": map(dictobj.obj_to_dict, machine.users()),
         }
     

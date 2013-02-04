@@ -12,7 +12,7 @@ class MachineWrapper(object):
         "identifier",
         "name",
         "image_name",
-        "hostname",
+        "external_hostname",
         "is_running",
         "public_port",
         "destroy",
@@ -45,7 +45,7 @@ class MachineWrapper(object):
     def ssh_config(self, username=None):
         user = self._find_user(username)
         return SshConfig(
-            hostname=self.hostname(),
+            hostname=self.external_hostname(),
             port=self.public_port(_GUEST_SSH_PORT),
             user=user.username,
             password=user.password
