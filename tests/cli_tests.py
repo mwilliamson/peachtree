@@ -45,14 +45,21 @@ class CliApi(object):
         self._shell = shell
     
     def start(self, request):
-        run_result = self._run([
-            "run", request.image_name,
-        ])
+        public_port_args = [
+            "--public-port={0}".format(port)
+            for port in request.public_ports
+        ]
+        run_result = self._run(
+            ["run", request.image_name] + public_port_args
+        )
         return json.loads(run_result.output)
         
     def running_machine(self, identifier):
         describe_result = self._run(["describe", identifier])
         return json.loads(describe_result.output)
+        
+    def is_running(self, identifier):
+        return self.running_machine(identifier) is not None
     
     def destroy(self, identifier):
         self._run(["stop", identifier])

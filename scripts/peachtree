@@ -26,9 +26,11 @@ def main():
 class RunCommand(object):
     def create_parser(self, subparser):
         subparser.add_argument('image')
+        subparser.add_argument('--public-port', action='append', default=[])
     
     def execute(self, provider, args):
-        machine = provider.start(args.image)
+        public_ports = map(int, args.public_port)
+        machine = provider.start(args.image, public_ports=public_ports)
         print _describe_machine(machine)
 
 
@@ -57,7 +59,8 @@ class StopCommand(object):
     
     def execute(self, provider, args):
         machine = provider.find_running_machine(args.identifier)
-        machine.destroy()
+        if machine is not None:
+            machine.destroy()
         
             
 class CronCommand(object):
@@ -75,10 +78,13 @@ class PublicPortCommand(object):
     
     def execute(self, provider, args):
         machine = provider.find_running_machine(args.identifier)
-        print machine.public_port(args.port)
+        if machine is None:
+            external_port = None
+        else:
+            external_port = machine.public_port(args.port)
+        print json.dumps(external_port)
         
 
-        
 _commands = {
     "run": RunCommand,
     "describe": DescribeCommand,
@@ -90,7 +96,10 @@ _commands = {
 
 
 def _describe_machine(machine):
-    description = machine_description.describe_machine(machine)
+    if machine is None:
+        description = None
+    else:
+        description = machine_description.describe_machine(machine)
     return json.dumps(description, indent=4)
 
 if __name__ == "__main__":
