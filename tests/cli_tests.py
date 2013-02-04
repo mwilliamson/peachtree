@@ -68,7 +68,7 @@ class CliApi(object):
         return json.loads(run_result.output)
     
     def destroy(self, identifier):
-        pass
+        self._run(["stop", identifier])
         
     def public_port(self, identifier, port):
         run_result = self._run(["public-port", identifier, str(port)])
