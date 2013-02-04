@@ -9,6 +9,7 @@ from pyramid.response import Response
 
 from . import dictobj
 from .request import MachineRequest
+from . import machine_description
 
 
 _default_timeout = 60 * 60
@@ -102,13 +103,7 @@ def start_server(port, provider):
         return success({"status": "OK"})
     
     def _describe_machine(machine):
-        return {
-            "identifier": machine.identifier,
-            "name": machine.name,
-            "imageName": machine.image_name,
-            "externalHostname": machine.external_hostname(),
-            "users": map(dictobj.obj_to_dict, machine.users()),
-        }
+        return machine_description.describe_machine(machine)
     
     config = Configurator()
     
