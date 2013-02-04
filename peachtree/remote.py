@@ -41,9 +41,6 @@ class RemoteProvider(object):
         machines = self._api.running_machines()
         return [_create_machine(machine, self._api) for machine in machines]
     
-    def _url(self, path):
-        return "{0}/{1}".format(self._base_url.rstrip("/"), path.lstrip("/"))
-    
     def __enter__(self):
         return self
         
