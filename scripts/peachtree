@@ -31,7 +31,7 @@ class RunCommand(object):
     def execute(self, provider, args):
         public_ports = map(int, args.public_port)
         machine = provider.start(args.image, public_ports=public_ports)
-        print _describe_machine(machine)
+        print _json_dumps(_describe_machine(machine))
 
 
 class DescribeCommand(object):
@@ -40,7 +40,16 @@ class DescribeCommand(object):
     
     def execute(self, provider, args):
         machine = provider.find_running_machine(args.identifier)
-        print _describe_machine(machine)
+        print _json_dumps(_describe_machine(machine))
+
+
+class DescribeAllCommand(object):
+    def create_parser(self, subparser):
+        pass
+    
+    def execute(self, provider, args):
+        machines = provider.list_running_machines()
+        print _json_dumps(map(_describe_machine, machines))
 
 
 class ListCommand(object):
@@ -82,12 +91,13 @@ class PublicPortCommand(object):
             external_port = None
         else:
             external_port = machine.public_port(args.port)
-        print json.dumps(external_port)
+        print _json_dumps(external_port)
         
 
 _commands = {
     "run": RunCommand,
     "describe": DescribeCommand,
+    "describe-all": DescribeAllCommand,
     "list-running": ListCommand,
     "stop": StopCommand,
     "cron": CronCommand,
@@ -97,10 +107,14 @@ _commands = {
 
 def _describe_machine(machine):
     if machine is None:
-        description = None
+        return None
     else:
-        description = machine_description.describe_machine(machine)
-    return json.dumps(description, indent=4)
+        return machine_description.describe_machine(machine)
+
+    
+def _json_dumps(value):
+    return json.dumps(value, indent=4)
+
 
 if __name__ == "__main__":
     main()

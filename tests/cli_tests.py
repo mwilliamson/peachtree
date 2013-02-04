@@ -57,7 +57,11 @@ class CliApi(object):
     def running_machine(self, identifier):
         describe_result = self._run(["describe", identifier])
         return json.loads(describe_result.output)
-        
+    
+    def running_machines(self):
+        result = self._run(["describe-all"])
+        return json.loads(result.output)
+    
     def is_running(self, identifier):
         return self.running_machine(identifier) is not None
     
