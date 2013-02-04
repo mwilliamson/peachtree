@@ -58,7 +58,14 @@ class Provider(object):
         else:
             request = request_machine(*(["peachtree"] + list(args)), **kwargs)
         network = self._networking.settings_for(request)
-        return self._start_with_network_settings(request, network)
+        machine = self._start_with_network_settings(request, network)
+        
+        config = self._guest_network_config_for(machine)
+        machine.root_shell().run(self._append_host_command(
+            "127.0.0.1", machine.name, config
+        ))
+        
+        return machine
             
     def start_many(self, requests):
         # TODO: assert name of each request is unique
@@ -88,11 +95,9 @@ class Provider(object):
                 config = self._guest_network_config_for(machine)
                 with machine.root_shell() as root_shell:
                     for hostname, address in addresses:
-                        # TODO: properly escape hosts_path
-                        sh_command = "echo {0} {1} >> '{2}'".format(
-                            address, hostname, config.hosts_path
-                        )
-                        root_shell.run(["sh", "-c", sh_command])
+                        root_shell.run(self._append_host_command(
+                            address, hostname, config
+                        ))
             
             return MachineSet(machines)
     
@@ -101,6 +106,13 @@ class Provider(object):
         os_family = image.operating_system_family
         return networkconfig.network_config(os_family)
     
+    def _append_host_command(self, address, hostname, network_config):
+         # TODO: properly escape hosts_path
+        sh_command = "echo {0} {1} >> '{2}'".format(
+            address, hostname, network_config.hosts_path
+        )
+        return ["sh", "-c", sh_command]
+
     def _start_with_network_settings(self, request, network):
         image = self._images.image(request.image_name)
         identifier = str(uuid.uuid4())

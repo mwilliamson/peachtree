@@ -43,6 +43,12 @@ def hostname_is_not_local(provider):
         hostname = machine.hostname()
         assert_that(hostname, hamcrest.is_not(hamcrest.equal_to("localhost")))
         assert_that(hostname, hamcrest.is_not(hamcrest.starts_with("127")))
+
+
+@test
+def machine_can_resolve_its_own_internal_name(provider):
+    with provider.start(_IMAGE_NAME) as machine:
+        machine.shell().run(["ping", machine.name, "-c1"])
         
         
 @test
