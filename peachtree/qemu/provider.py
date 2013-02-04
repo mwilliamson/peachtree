@@ -5,7 +5,6 @@ import json
 import errno
 import random
 
-from concurrent import futures
 import spur
 import spur.ssh
 import starboard
@@ -17,6 +16,7 @@ from .. import processes
 from .. import dictobj
 from ..request import request_machine, MachineRequest
 from . import networkconfig
+from .. import futures
 
 local_shell = spur.LocalShell()
 
@@ -69,37 +69,36 @@ class Provider(object):
             
     def start_many(self, requests):
         # TODO: assert name of each request is unique
-        with futures.ThreadPoolExecutor(max_workers=4) as executor:
-            network = self._networking.start_network()
+        network = self._networking.start_network()
+        
+        def start(request):
+            network_settings = network.settings_for(request)
+            return self._start_with_network_settings(request, network_settings)
+        
+        machines = list(futures.thread_map(start, requests))
+        
+        addresses = []
+        for index, machine in enumerate(machines):
+            request = requests[index]
             
-            def start(request):
-                network_settings = network.settings_for(request)
-                return self._start_with_network_settings(request, network_settings)
-            
-            machines = list(executor.map(start, requests))
-            
-            addresses = []
-            for index, machine in enumerate(machines):
-                request = requests[index]
-                
-                eth1_address = "192.168.0.{0}".format(1 + index)
-                netmask = "255.255.255.0"
-                with machine.root_shell() as root_shell:
-                    config = self._guest_network_config_for(machine)
-                    config.configure_internal_interface(
-                        root_shell, eth1_address, netmask
-                    )
-                    addresses.append((request.name, eth1_address))
-            
-            for machine in machines:
+            eth1_address = "192.168.0.{0}".format(1 + index)
+            netmask = "255.255.255.0"
+            with machine.root_shell() as root_shell:
                 config = self._guest_network_config_for(machine)
-                with machine.root_shell() as root_shell:
-                    for hostname, address in addresses:
-                        root_shell.run(self._append_host_command(
-                            address, hostname, config
-                        ))
-            
-            return MachineSet(machines)
+                config.configure_internal_interface(
+                    root_shell, eth1_address, netmask
+                )
+                addresses.append((request.name, eth1_address))
+        
+        for machine in machines:
+            config = self._guest_network_config_for(machine)
+            with machine.root_shell() as root_shell:
+                for hostname, address in addresses:
+                    root_shell.run(self._append_host_command(
+                        address, hostname, config
+                    ))
+        
+        return MachineSet(machines)
     
     def _guest_network_config_for(self, machine):
         image = self._images.image(machine.image_name)
