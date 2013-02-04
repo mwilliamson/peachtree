@@ -1,4 +1,5 @@
 import threading
+import sys
 
 
 def thread_map(func, iterable):
@@ -31,9 +32,9 @@ class Worker(object):
     def _apply(self):
         try:
             self._value = self._func()
-        except Exception as error:
-            self._error = error
+        except:
+            self._error = sys.exc_info()
             raise
             
     def _reraise_error(self):
-        raise self._error
+        raise self._error[0], self._error[1], self._error[2]

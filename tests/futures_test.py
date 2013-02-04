@@ -37,13 +37,12 @@ def thread_map_preserves_order_of_elements():
     assert_equal(original, list(result))
 
 
+class KurtError(Exception):
+    pass
+    
+def raise_error(value):
+    raise KurtError("No, Javier, No!")
+
 @istest
 def error_is_raised_if_mapping_function_raises_error():
-    class KurtError(Exception):
-        pass
-    
-    def raise_error(value):
-        raise KurtError("No, Javier, No!")
-    
     assert_raises(KurtError, lambda: futures.thread_map(raise_error, [0]))
-
