@@ -14,12 +14,12 @@ def remote_provider(url=None, hostname=None, port=None):
             url = "http://{0}:{1}/".format(hostname, port)
         else:
             raise TypeError("Must provide either: url, or; hostname and port")
-    return RemoteProvider(url)
+    return RemoteProvider(RemoteApi(url))
 
 
 class RemoteProvider(object):
-    def __init__(self, base_url):
-        self._api = RemoteApi(base_url)
+    def __init__(self, api):
+        self._api = api
         
     def start(self, *args, **kwargs):
         # TODO: remove duplication with QemuProvider.start
