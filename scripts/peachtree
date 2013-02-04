@@ -29,8 +29,16 @@ class RunCommand(object):
     
     def execute(self, provider, args):
         machine = provider.start(args.image)
-        description = machine_description.describe_machine(machine)
-        print json.dumps(description, indent=4)
+        print _describe_machine(machine)
+
+
+class DescribeCommand(object):
+    def create_parser(self, subparser):
+        subparser.add_argument('identifier')
+    
+    def execute(self, provider, args):
+        machine = provider.find_running_machine(args.identifier)
+        print _describe_machine(machine)
 
 
 class ListCommand(object):
@@ -73,11 +81,17 @@ class PublicPortCommand(object):
         
 _commands = {
     "run": RunCommand,
+    "describe": DescribeCommand,
     "list-running": ListCommand,
     "stop": StopCommand,
     "cron": CronCommand,
     "public-port": PublicPortCommand,
 }
+
+
+def _describe_machine(machine):
+    description = machine_description.describe_machine(machine)
+    return json.dumps(description, indent=4)
 
 if __name__ == "__main__":
     main()

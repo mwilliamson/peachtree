@@ -49,6 +49,10 @@ class CliApi(object):
             "run", request.image_name,
         ])
         return json.loads(run_result.output)
+        
+    def running_machine(self, identifier):
+        describe_result = self._run(["describe", identifier])
+        return json.loads(describe_result.output)
     
     def destroy(self, identifier):
         self._run(["stop", identifier])
