@@ -7,7 +7,7 @@ import spur
 import peachtree
 from peachtree.request import request_machine, MachineRequest
 from peachtree.machines import MachineWrapper
-from peachtree.remote import RemoteMachine
+from peachtree.remote import RemoteMachine, RemoteProvider
 from . import provider_tests
 from .tempdir import create_temporary_dir
 
@@ -30,30 +30,13 @@ def create_cli_provider():
         _pick_image(_IMAGE_NAME)
         _pick_image(_WINDOWS_IMAGE_NAME)
         
-        provider = CliProvider(data_dir, spur.LocalShell())
+        provider = RemoteProvider(CliApi(data_dir, spur.LocalShell()))
         try:
             yield provider
         finally:
-            for machine in provider.list_running_machines():
-                machine.destroy()
-
-
-class CliProvider(object):
-    def __init__(self, data_dir, shell):
-        self._cli_api = CliApi(data_dir, shell)
-    
-    def start(self, *args, **kwargs):
-        # TODO: remove duplication with QemuProvider.start
-        if len(args) == 1 and not kwargs and isinstance(args[0], MachineRequest):
-            request = args[0]
-        else:
-            request = request_machine(*(["peachtree"] + list(args)), **kwargs)
-            
-        machine_desc = self._cli_api.start(request)
-        return MachineWrapper(RemoteMachine(machine_desc, self._cli_api))
-    
-    def list_running_machines(self):
-        return []
+            pass
+            #~ for machine in provider.list_running_machines():
+                #~ machine.destroy()
 
 
 class CliApi(object):
