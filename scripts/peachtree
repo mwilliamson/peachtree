@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 
 import peachtree
+from peachtree import machine_description
 
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--qemu-data-dir", help=argparse.SUPPRESS)
     subparsers = parser.add_subparsers()
     
     for command_name, command_builder in _commands.iteritems():
@@ -16,12 +19,8 @@ def main():
         command.create_parser(subparser)
     
     args = parser.parse_args()
-    provider_name = "qemu"
-    if provider_name in peachtree.providers:
-        args.func(peachtree.providers[provider_name](), args)
-    else:
-        print "Unrecognised provider:", provider_name
-        exit(1)
+    provider = peachtree.qemu_provider(data_dir=args.qemu_data_dir)
+    args.func(provider, args)
 
 
 class RunCommand(object):
@@ -30,13 +29,8 @@ class RunCommand(object):
     
     def execute(self, provider, args):
         machine = provider.start(args.image)
-        print "identifier", machine.identifier
-        ssh_config = machine.ssh_config()
-        print "== SSH config =="
-        print "HostName", ssh_config.hostname
-        print "User", ssh_config.user
-        print "Port", ssh_config.port
-        print "Password", ssh_config.password
+        description = machine_description.describe_machine(machine)
+        print json.dumps(description, indent=4)
 
 
 class ListCommand(object):
@@ -64,13 +58,25 @@ class CronCommand(object):
     
     def execute(self, provider, args):
         provider.cron()
+
+
+class PublicPortCommand(object):
+    def create_parser(serlf, subparser):
+        subparser.add_argument('identifier')
+        subparser.add_argument("port", type=int)
     
+    def execute(self, provider, args):
+        machine = provider.find_running_machine(args.identifier)
+        print machine.public_port(args.port)
+        
+
         
 _commands = {
     "run": RunCommand,
     "list-running": ListCommand,
     "stop": StopCommand,
     "cron": CronCommand,
+    "public-port": PublicPortCommand,
 }
 
 if __name__ == "__main__":
