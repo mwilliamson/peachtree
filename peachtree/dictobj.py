@@ -1,5 +1,6 @@
 import re
 import uuid
+import collections
 
 
 def dict_to_obj(dict_kwargs, cls):
@@ -12,7 +13,7 @@ def dict_to_obj(dict_kwargs, cls):
 
 
 def obj_to_dict(obj):
-    return dict(
+    return collections.OrderedDict(
         (_to_camel_case(key), getattr(obj, key))
         for key in getattr(obj, _fields_attr)
     )

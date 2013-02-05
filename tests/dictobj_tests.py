@@ -48,6 +48,18 @@ def conversion_from_obj_to_dict_converts_underscores_to_camel_case():
 
 
 @istest
+def converting_object_to_dict_preserves_ordering():
+    User = dictobj.data_class("User", [
+        "username", "salt", "password", "email_address"
+    ])
+    
+    user = User("bob", "!%ksdg", "password1", "bob@example.com")
+    result = dictobj.obj_to_dict(user)
+    
+    assert_equal(["username", "salt", "password", "emailAddress"], result.keys())
+    
+
+@istest
 def instances_of_data_class_are_equal_iff_all_fields_have_the_same_value():
     User = dictobj.data_class("User", ["username", "password"])
     
