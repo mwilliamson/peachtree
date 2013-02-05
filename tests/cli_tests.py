@@ -74,7 +74,8 @@ class CliApi(object):
     
     def _run(self, command):
         data_dir_arg = "--qemu-data-dir={0}".format(self._data_dir)
-        return self._shell.run(["peachtree", data_dir_arg] + command)
+        format_arg = "--output-format=json"
+        return self._shell.run(["peachtree", data_dir_arg, format_arg] + command)
 
 
 CliTests = provider_tests.create(
