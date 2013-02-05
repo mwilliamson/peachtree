@@ -1,6 +1,8 @@
 import json
 import sys
 
+from peachtree import human
+
 
 def find_writer_by_name(name, output_file=None):
     if output_file is None:
@@ -22,6 +24,15 @@ class JsonWriter(object):
         self._output_file.write("\n")
 
 
+class HumanWriter(object):
+    def __init__(self, output_file):
+        self._output_file = output_file
+    
+    def write_result(self, value):
+        self._output_file.write(human.dumps(value))
+
+
 _writers = {
-    "json": JsonWriter
+    "json": JsonWriter,
+    "human": HumanWriter,
 }

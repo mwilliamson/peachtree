@@ -13,7 +13,7 @@ def main():
     parser.add_argument(
         "--output-format",
         choices=writers.writer_names(),
-        default="json",
+        default="human",
     )
     
     subparsers = parser.add_subparsers()
