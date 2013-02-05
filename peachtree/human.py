@@ -7,7 +7,7 @@ def dumps(value):
         return str(value)
     elif isinstance(value, list):
         return "\n".join(
-            "- {0}".format(_indent(dumps(element)))
+            _dumps_element(element)
             for element in value
         )
     elif isinstance(value, dict):
@@ -17,13 +17,26 @@ def dumps(value):
         )
 
 
+def _dumps_element(element):
+    output = _indent(dumps(element))
+    if _is_scalar(element):
+        return "- {0}".format(output)
+    else:
+        return "- {0}\n".format(output)
+
+
 def _dumps_item_value(item_value):
     output = _indent(dumps(item_value))
-    if isinstance(item_value, (list, dict)):
-        return "\n  {0}".format(output)
-    else:
+    if _is_scalar(item_value):
         return " {0}".format(output)
+    else:
+        return "\n  {0}".format(output)
+
+
+def _is_scalar(value):
+    return not isinstance(value, (list, dict))
 
 
 def _indent(value):
     return value.replace("\n", "\n  ")
+

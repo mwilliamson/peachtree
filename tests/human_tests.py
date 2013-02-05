@@ -38,7 +38,12 @@ def lists_are_dumped_with_each_element_on_new_line_preceded_by_hyphen():
     
 @istest
 def nested_lists_cause_extra_indentation():
-    assert_equal("- - 3\n  - 2\n- - 1\n- 0", dumps([[3, 2], [1], 0]))
+    assert_equal("- - 3\n  - 2\n", dumps([[3, 2]]))
+    
+    
+@istest
+def items_in_lists_are_separated_by_blank_line_if_they_are_multiline():
+    assert_equal("- - 3\n  - 2\n\n- - 1\n  - 0\n", dumps([[3, 2], [1, 0]]))
 
 
 @istest
