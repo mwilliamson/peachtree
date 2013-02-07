@@ -12,6 +12,7 @@ class MachineWrapper(object):
         "identifier",
         "name",
         "image_name",
+        "ssh_internal_port",
         "external_hostname",
         "is_running",
         "public_port",
@@ -46,7 +47,7 @@ class MachineWrapper(object):
         user = self._find_user(username)
         return SshConfig(
             hostname=self.external_hostname(),
-            port=self.public_port(_GUEST_SSH_PORT),
+            port=self.public_port(self.ssh_internal_port),
             user=user.username,
             password=user.password
         )
@@ -83,6 +84,3 @@ class MachineWrapper(object):
             
         return filter(condition, self.users())[0]
         
-
-# TODO: don't assume SSH port of 22
-_GUEST_SSH_PORT = 22

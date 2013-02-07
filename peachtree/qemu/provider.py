@@ -57,7 +57,8 @@ class Provider(object):
             request = args[0]
         else:
             request = request_machine(*(["peachtree"] + list(args)), **kwargs)
-        network = self._networking.settings_for(request)
+        image = self._images.image(request.image_name)
+        network = self._networking.settings_for(image, request)
         machine = self._start_with_network_settings(request, network)
         
         config = self._guest_network_config_for(machine)
@@ -72,7 +73,8 @@ class Provider(object):
         network = self._networking.start_network()
         
         def start(request):
-            network_settings = network.settings_for(request)
+            image = self._images.image(request.image_name)
+            network_settings = network.settings_for(image, request)
             return self._start_with_network_settings(request, network_settings)
         
         machines = list(futures.thread_map(start, requests))
@@ -123,6 +125,7 @@ class Provider(object):
             name=request.name,
             identifier=identifier,
             image_name=request.image_name,
+            ssh_internal_port=image.ssh_internal_port,
             # TODO: either re-couple network, or find a better way of
             # storing network details
             forwarded_ports=network.forwarded_ports,
@@ -253,17 +256,25 @@ class Images(object):
             ]
             
         operating_system_family = description.get("operatingSystemFamily", "linux")
+        ssh_internal_port = description.get("sshPort", 22)
             
-        return Image(disks, memory_size, users, operating_system_family)
+        return Image(
+            disks=disks,
+            memory_size=memory_size,
+            users=users,
+            operating_system_family=operating_system_family,
+            ssh_internal_port=ssh_internal_port,
+        )
 
 
-class Image(object):
-    def __init__(self, disks, memory_size, users, operating_system_family):
-        self.disks = disks
-        self.memory_size = memory_size
-        self.users = users
-        self.operating_system_family = operating_system_family
-    
+Image = dictobj.data_class("Image", [
+    "disks",
+    "memory_size",
+    "users",
+    "operating_system_family",
+    "ssh_internal_port",
+])
+
     
 def _default_data_dir():
     xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
@@ -275,6 +286,7 @@ MachineStatus = dictobj.data_class("MachineStatus",
         "identifier",
         "name",
         "image_name",
+        "ssh_internal_port",
         "forwarded_ports",
         "start_time",
         "timeout",
@@ -376,6 +388,7 @@ class QemuMachine(object):
         self._users = users
         self.name = status.name
         self.image_name = status.image_name
+        self.ssh_internal_port = status.ssh_internal_port
         self.identifier = status.identifier
         self._process_set = processes.from_dir(status.process_set_run_dir)
         self._forwarded_ports = status.forwarded_ports
@@ -404,12 +417,9 @@ class QemuMachine(object):
         return self._users
 
 
-_GUEST_SSH_PORT = 22
-
-
 class UserNetworking(object):
-    def settings_for(self, request):
-        forwarded_ports = _generate_forwarded_ports(request.public_ports)
+    def settings_for(self, image, request):
+        forwarded_ports = _generate_forwarded_ports(image, request.public_ports)
         return UserNetworkSettings(forwarded_ports, [])
         
     def start_network(self):
@@ -421,8 +431,8 @@ class UserNetwork(object):
     def __init__(self, port):
         self._port = port
         
-    def settings_for(self, request):
-        forwarded_ports = _generate_forwarded_ports(request.public_ports)
+    def settings_for(self, image, request):
+        forwarded_ports = _generate_forwarded_ports(image, request.public_ports)
         socket_args = _generate_network_args(
             "guest-net-socket",
             "socket,mcast=230.0.0.1:{0},localaddr=127.0.0.1".format(self._port),
@@ -456,7 +466,7 @@ def _generate_network_args(name, netdev):
     ]
 
     
-def _generate_forwarded_ports(public_ports):
-    public_ports = set([_GUEST_SSH_PORT] + public_ports)
+def _generate_forwarded_ports(image, public_ports):
+    public_ports = set([image.ssh_internal_port] + public_ports)
     host_ports = starboard.find_local_free_tcp_ports(len(public_ports))
     return dict(zip(public_ports, host_ports))

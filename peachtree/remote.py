@@ -57,6 +57,7 @@ class RemoteMachine(object):
         self.identifier = desc["identifier"]
         self.name = desc["name"]
         self.image_name = desc["imageName"]
+        self.ssh_internal_port = desc["sshInternalPort"]
         self._external_hostname = desc["externalHostname"]
         self._users = [dictobj.dict_to_obj(user, User) for user in desc["users"]]
         self._api = api

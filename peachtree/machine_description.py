@@ -8,6 +8,7 @@ def describe_machine(machine):
         ("identifier", machine.identifier),
         ("name", machine.name),
         ("imageName", machine.image_name),
+        ("sshInternalPort", machine.ssh_internal_port),
         ("externalHostname", machine.external_hostname()),
         ("users", map(dictobj.obj_to_dict, machine.users())),
     ])
