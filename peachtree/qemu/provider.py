@@ -157,7 +157,7 @@ class Provider(object):
         wait.wait_until_successful(
             attempt_ssh_command,
             errors=(spur.ssh.ConnectionError, ),
-            timeout=60,
+            timeout=180,
             wait_time=1
         )
         
