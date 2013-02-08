@@ -14,7 +14,7 @@ setup(
     author='Michael Williamson',
     url='http://github.com/mwilliamson/peachtree',
     scripts=["scripts/peachtree", "scripts/peachtree-server"],
-    packages=['peachtree', 'peachtree.qemu'],
+    packages=['peachtree', 'peachtree.qemu', 'peachtree.windows'],
     install_requires=[
         "spur>=0.3.0",
         "starboard>=0.1.2",
