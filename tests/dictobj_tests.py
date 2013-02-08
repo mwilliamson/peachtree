@@ -26,6 +26,17 @@ def arguments_with_camelcase_names_are_converted_to_use_underscores():
 
 
 @istest
+def unrecognised_fields_are_ignored():
+    User = dictobj.data_class("User", ["username"])
+    
+    input_dict = {"username": "bob", "password": "password1"}
+    converted_user = dictobj.dict_to_obj(input_dict, User)
+    
+    expected_user = User("bob")
+    assert_equal(expected_user, converted_user)
+
+
+@istest
 def conversion_from_obj_to_dict_uses_hacktastic_fields_property():
     User = dictobj.data_class("User", ["username", "password"])
     

@@ -4,9 +4,15 @@ import collections
 
 
 def dict_to_obj(dict_kwargs, cls):
-    cls_kwargs = dict(
+    dict_kwargs_without_camel_case = dict(
         (_from_camel_case(key), value)
         for key, value in dict_kwargs.iteritems()
+    )
+    
+    cls_kwargs = dict(
+        (key, value)
+        for key, value in dict_kwargs_without_camel_case.iteritems()
+        if key in getattr(cls, _fields_attr)
     )
     
     return cls(**cls_kwargs)
