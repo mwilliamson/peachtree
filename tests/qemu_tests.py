@@ -49,20 +49,6 @@ QemuProviderTests = provider_tests.create(
 
 
 @istest
-def can_start_multiple_machines():
-    requests = [
-        peachtree.request_machine("first", image_name=_IMAGE_NAME),
-        peachtree.request_machine("second", image_name=_IMAGE_NAME),
-    ]
-    with provider_with_user_networking() as provider:
-        with provider.start_many(requests) as machines:
-            _assert_can_run_commands_on_machine(machines[0])
-            _assert_can_run_commands_on_machine(machines[1])
-            _assert_can_run_commands_on_machine(machines["first"])
-            _assert_can_run_commands_on_machine(machines["second"])
-
-
-@istest
 def machines_started_at_the_same_time_can_access_each_other_directly_by_name():
     requests = [
         peachtree.request_machine("first", image_name=_IMAGE_NAME),
@@ -101,9 +87,3 @@ def cron_does_not_kill_machines_without_timeout():
         with provider.start(_IMAGE_NAME) as machine:
             provider.cron()
             assert machine.is_running()
-
-
-def _assert_can_run_commands_on_machine(machine):
-    shell = machine.shell()
-    result = shell.run(["echo", "Hello there"])
-    assert_equal("Hello there\n", result.output)

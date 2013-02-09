@@ -1,9 +1,10 @@
-from nose.tools import assert_equals
+from nose.tools import assert_equals, assert_equal
 import hamcrest
 from hamcrest import assert_that, contains, has_property
 
 from nose_test_sets import TestSetBuilder
 from peachtree import wait
+import peachtree
 
 
 suite_builder = TestSetBuilder()
@@ -144,4 +145,24 @@ def machines_that_have_stopped_are_not_in_list_of_running_machines(provider):
     running_machines = provider.list_running_machines()
     assert_equals([], running_machines)
 
+
+@test
+def can_start_multiple_machines(provider):
+    requests = [
+        peachtree.request_machine("first", image_name=_IMAGE_NAME),
+        peachtree.request_machine("second", image_name=_IMAGE_NAME),
+    ]
+    with provider.start_many(requests) as machines:
+        _assert_can_run_commands_on_machine(machines[0])
+        _assert_can_run_commands_on_machine(machines[1])
+        _assert_can_run_commands_on_machine(machines["first"])
+        _assert_can_run_commands_on_machine(machines["second"])
+
+
+def _assert_can_run_commands_on_machine(machine):
+    shell = machine.shell()
+    result = shell.run(["echo", "Hello there"])
+    assert_equal("Hello there\n", result.output)
+
+    
 create = suite_builder.create    

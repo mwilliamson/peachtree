@@ -5,6 +5,7 @@ import argparse
 import peachtree
 from peachtree import machine_description
 from peachtree import writers
+from peachtree import arggroup
 
 
 def main():
@@ -40,6 +41,30 @@ class RunCommand(object):
         public_ports = map(int, args.public_port)
         machine = provider.start(args.image, public_ports=public_ports)
         writer.write_result(_describe_machine(machine))
+
+
+class RunManyCommand(object):
+    def create_parser(self, subparser):
+        request_parser = arggroup.add_repeatable_argument_group(subparser, "--request")
+        request_parser.add_argument("--name", required=True)
+        request_parser.add_argument("--image", required=True)
+        request_parser.add_argument('--public-port', action='append', default=[])
+    
+    def execute(self, provider, writer, args):
+        requests_arg = args.request
+        
+        def create_request(request_arg):
+            return peachtree.request_machine(
+                name=request_arg.name,
+                image_name=request_arg.image,
+                public_ports=map(int, request_arg.public_port),
+            )
+            
+        requests = map(create_request, requests_arg)
+        
+        machine_set = provider.start_many(requests)
+        
+        writer.write_result(map(_describe_machine, machine_set))
 
 
 class DescribeCommand(object):
@@ -105,6 +130,7 @@ class PublicPortCommand(object):
 
 _commands = {
     "run": RunCommand,
+    "run-many": RunManyCommand,
     "describe": DescribeCommand,
     "describe-all": DescribeAllCommand,
     "list-running": ListCommand,

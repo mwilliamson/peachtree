@@ -1,6 +1,7 @@
 import contextlib
 import os
 import json
+import itertools
 
 import spur
 
@@ -44,15 +45,25 @@ class CliApi(object):
         self._shell = shell
     
     def start(self, request):
-        public_port_args = [
-            "--public-port={0}".format(port)
-            for port in request.public_ports
-        ]
+        public_port_args = self._generate_public_port_args(request)
         run_result = self._run(
             ["run", request.image_name] + public_port_args
         )
         return json.loads(run_result.output)
+    
+    def start_many(self, requests):
+        def generate_request_args(request):
+            public_port_args = self._generate_public_port_args(request)
+            return [
+                "--request",
+                "--name", request.name,
+                "--image", request.image_name,
+            ] + public_port_args
         
+        requests_args = _flatten(map(generate_request_args, requests))
+        run_result = self._run(["run-many"] + requests_args)
+        return json.loads(run_result.output)
+    
     def running_machine(self, identifier):
         describe_result = self._run(["describe", identifier])
         return json.loads(describe_result.output)
@@ -66,11 +77,21 @@ class CliApi(object):
     
     def destroy(self, identifier):
         self._run(["stop", identifier])
-        
+    
+    def _generate_public_port_args(self, request):
+        return [
+            "--public-port={0}".format(port)
+            for port in request.public_ports
+        ]
+    
     def _run(self, command):
         data_dir_arg = "--qemu-data-dir={0}".format(self._data_dir)
         format_arg = "--output-format=json"
         return self._shell.run(["peachtree", data_dir_arg, format_arg] + command)
+
+
+def _flatten(list_of_lists):
+    return list(itertools.chain.from_iterable(list_of_lists))
 
 
 CliTests = provider_tests.create(

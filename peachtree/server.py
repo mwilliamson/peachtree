@@ -53,9 +53,17 @@ def start_server(port, provider):
     
     @http_post
     def start(body):
-        machine_request = dictobj.dict_to_obj(body, MachineRequest)
-        machine = provider.start(machine_request)
-        return success(_describe_machine(machine))
+        if isinstance(body, list):
+            machine_requests = [
+                dictobj.dict_to_obj(request_dict, MachineRequest)
+                for request_dict in body
+            ]
+            machine_set = provider.start_many(machine_requests)
+            return success(map(_describe_machine, machine_set))
+        else:
+            machine_request = dictobj.dict_to_obj(body, MachineRequest)
+            machine = provider.start(machine_request)
+            return success(_describe_machine(machine))
             
     @http_get
     def running_machines(post):

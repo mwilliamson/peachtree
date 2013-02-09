@@ -2,7 +2,7 @@ import requests
 import urllib
 import json
 
-from .machines import MachineWrapper
+from .machines import MachineWrapper, MachineSet
 from . import dictobj
 from .users import User
 from .request import request_machine, MachineRequest
@@ -29,6 +29,13 @@ class RemoteProvider(object):
             request = request_machine(*(["peachtree"] + list(args)), **kwargs)
         response = self._api.start(request)
         return _create_machine(response, self._api)
+
+    def start_many(self, requests):
+        machine_descriptions = self._api.start_many(requests)
+        return MachineSet([
+            _create_machine(machine_description, self._api)
+            for machine_description in machine_descriptions
+        ])
 
     def find_running_machine(self, identifier):
         response = self._api.running_machine(identifier)
@@ -99,6 +106,12 @@ class RemoteApi(object):
         return self._action(
             "machines",
             data=dictobj.obj_to_dict(request),
+        )
+        
+    def start_many(self, requests):
+        return self._action(
+            "machines",
+            data=map(dictobj.obj_to_dict, requests),
         )
         
     def running_machine(self, identifier):
