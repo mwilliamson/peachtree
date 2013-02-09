@@ -11,7 +11,7 @@ import starboard
 
 from .. import wait
 from ..users import User
-from ..machines import MachineWrapper
+from ..machines import MachineWrapper, MachineSet
 from .. import processes
 from .. import dictobj
 from ..request import request_machine, MachineRequest
@@ -293,30 +293,6 @@ MachineStatus = dictobj.data_class("MachineStatus",
         "process_set_run_dir",
     ]
 )
-
-
-class MachineSet(object):
-    def __init__(self, machines):
-        self._machines = machines
-        
-    def __enter__(self):
-        return self
-        
-    def __exit__(self, *args):
-        for machine in self._machines:
-            machine.destroy()
-            
-    def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return next(
-                machine
-                for machine in self._machines
-                if machine.name == key
-            )
-        elif isinstance(key, (int, long)):
-            return self._machines[key]
-        else:
-            raise TypeError("Expected key to be string or integer")
 
 
 class Statuses(object):
