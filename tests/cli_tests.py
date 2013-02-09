@@ -34,9 +34,8 @@ def create_cli_provider():
         try:
             yield provider
         finally:
-            pass
-            #~ for machine in provider.list_running_machines():
-                #~ machine.destroy()
+            for machine in provider.list_running_machines():
+                machine.destroy()
 
 
 class CliApi(object):
