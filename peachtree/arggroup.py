@@ -36,5 +36,5 @@ def add_repeatable_argument_group(parser, name):
                 remaining_argv = remaining_argv[group_end_index + 1:]
             
     
-    parser.add_argument("--requests", action=RepeatableGroupAction)
+    parser.add_argument(name, action=RepeatableGroupAction)
     return group_parser
