@@ -19,14 +19,14 @@ class MachineWrapper(object):
         "destroy",
         "users",
     ]
-        
-    def public_port(self, guest_port):
-        return self.forwarded_tcp_ports().get(guest_port, None)
     
     def __init__(self, machine):
         self._machine = machine
         for delegate in self._delegates:
             setattr(self, delegate, getattr(self._machine, delegate))
+        
+    def public_port(self, guest_port):
+        return self.forwarded_tcp_ports().get(guest_port, None)
     
     def __enter__(self):
         return self
