@@ -15,10 +15,13 @@ class MachineWrapper(object):
         "ssh_internal_port",
         "external_hostname",
         "is_running",
-        "public_port",
+        "forwarded_tcp_ports",
         "destroy",
         "users",
     ]
+        
+    def public_port(self, guest_port):
+        return self.forwarded_tcp_ports().get(guest_port, None)
     
     def __init__(self, machine):
         self._machine = machine

@@ -407,14 +407,14 @@ class QemuMachine(object):
         
         self._statuses.remove(self.identifier)
         
-    def public_port(self, guest_port):
-        return self._forwarded_ports.get(guest_port, None)
-        
     def external_hostname(self):
         return starboard.find_local_hostname()
         
     def users(self):
         return self._users
+    
+    def forwarded_tcp_ports(self):
+        return self._forwarded_ports
 
 
 class UserNetworking(object):

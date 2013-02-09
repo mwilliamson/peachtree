@@ -11,4 +11,5 @@ def describe_machine(machine):
         ("sshInternalPort", machine.ssh_internal_port),
         ("externalHostname", machine.external_hostname()),
         ("users", map(dictobj.obj_to_dict, machine.users())),
+        ("forwardedTcpPorts", machine.forwarded_tcp_ports()),
     ])

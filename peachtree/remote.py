@@ -60,6 +60,10 @@ class RemoteMachine(object):
         self.ssh_internal_port = desc["sshInternalPort"]
         self._external_hostname = desc["externalHostname"]
         self._users = [dictobj.dict_to_obj(user, User) for user in desc["users"]]
+        self._forwarded_tcp_ports = dict(
+            (int(key), value)
+            for key, value in desc["forwardedTcpPorts"].iteritems()
+        )
         self._api = api
     
     def external_hostname(self):
@@ -68,11 +72,11 @@ class RemoteMachine(object):
     def users(self):
         return self._users
     
+    def forwarded_tcp_ports(self):
+        return self._forwarded_tcp_ports
+    
     def is_running(self):
         return self._api.is_running(self.identifier)
-    
-    def public_port(self, guest_port):
-        return self._api.public_port(self.identifier, guest_port)
     
     def restart(self):
         return self._api.restart(self.identifier)
@@ -106,12 +110,6 @@ class RemoteApi(object):
     def is_running(self, identifier):
         response = self._info(self._machine_path(identifier, "is-running"))
         return response["isRunning"]
-        
-    def public_port(self, identifier, port):
-        return self._info(
-            self._machine_path(identifier, "public-port"),
-            data={"guest-port": port},
-        )["port"]
         
     def restart(self, identifier):
         self._action(self._machine_path(identifier, "restart"))

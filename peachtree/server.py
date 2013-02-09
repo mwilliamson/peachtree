@@ -76,16 +76,6 @@ def start_server(port, provider):
         is_running = machine is not None
         return success({"isRunning": is_running})
     
-    @http_get
-    def public_port(post, identifier):
-        machine = provider.find_running_machine(identifier)
-        if machine is None:
-            return not_found(None)
-        else:
-            guest_port = int(post.get("guest-port"))
-            public_port = machine.public_port(guest_port)
-            return success({"port": public_port})
-        
     @http_post
     def restart(post, identifier):
         machine = provider.find_running_machine(identifier)
@@ -118,7 +108,6 @@ def start_server(port, provider):
     
     add_machine_route("", running_machine)
     add_machine_route("is-running", is_running)
-    add_machine_route("public-port", public_port)
     add_machine_route("restart", restart)
     add_machine_route("destroy", destroy)
     

@@ -68,10 +68,6 @@ class CliApi(object):
     def destroy(self, identifier):
         self._run(["stop", identifier])
         
-    def public_port(self, identifier, port):
-        run_result = self._run(["public-port", identifier, str(port)])
-        return int(run_result.output.strip())
-    
     def _run(self, command):
         data_dir_arg = "--qemu-data-dir={0}".format(self._data_dir)
         format_arg = "--output-format=json"
