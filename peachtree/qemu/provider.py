@@ -347,8 +347,7 @@ class Statuses(object):
     def _write_json(self, identifier, data):
         status_path = self._status_path(identifier)
         
-        if not os.path.exists(os.path.dirname(status_path)):
-            os.makedirs(os.path.dirname(status_path))
+        _mkdir_p(os.path.dirname(status_path))
             
         with open(status_path, "w") as status_file:
             json.dump(data, status_file)
@@ -446,3 +445,11 @@ def _generate_forwarded_ports(image, public_ports):
     public_ports = set([image.ssh_internal_port] + public_ports)
     host_ports = starboard.find_local_free_tcp_ports(len(public_ports))
     return dict(zip(public_ports, host_ports))
+
+
+def _mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as error:
+        if not (error.errno == errno.EEXIST and os.path.isdir(path)):
+            raise
