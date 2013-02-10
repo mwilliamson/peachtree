@@ -17,20 +17,23 @@ _default_timeout = 60 * 60
 
 def start_server(port, provider):
     def http_post(func):
-        return view(func, "POST")
+        return view({"POST": func})
         
     def http_get(func):
-        return view(func, "GET")
+        return view({"GET": func})
     
     
-    def view(func, http_method):
-        @functools.wraps(func)
+    def view(funcs):
         def respond(request):
-            if request.method == http_method:
+            func = funcs.get(request.method, None)
+            if func is None:
+                http_methods = funcs.keys()
+                message = "{0} required".format(" or ".join(http_methods))
+                status_code, result = 405, message
+            else:
                 # TODO: check some credentials
                 status_code, result = func(request.json_body, **request.matchdict)
-            else:
-                status_code, result = 405, "{0} required".format(http_method)
+                
             return Response(
                 json.dumps(result),
                 status_code=status_code,
@@ -45,13 +48,6 @@ def start_server(port, provider):
     def not_found(result):
         return 404, result
         
-    def machines(request):
-        if request.method == "POST":
-            return start(request)
-        else:
-            return running_machines(request)
-    
-    @http_post
     def start(body):
         if isinstance(body, list):
             machine_requests = [
@@ -65,10 +61,14 @@ def start_server(port, provider):
             machine = provider.start(machine_request)
             return success(_describe_machine(machine))
             
-    @http_get
     def running_machines(post):
         machines = provider.list_running_machines()
         return success(map(_describe_machine, machines))
+        
+    machines = view({
+        "POST": start,
+        "GET": running_machines,
+    })
         
     @http_get
     def running_machine(post, identifier):
