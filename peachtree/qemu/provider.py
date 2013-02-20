@@ -17,6 +17,7 @@ from .. import dictobj
 from ..request import request_machine, MachineRequest
 from . import networkconfig
 from .. import futures
+from ..common import START_MACHINE_TIMEOUT
 
 local_shell = spur.LocalShell()
 
@@ -157,7 +158,7 @@ class Provider(object):
         wait.wait_until_successful(
             attempt_ssh_command,
             errors=(spur.ssh.ConnectionError, ),
-            timeout=180,
+            timeout=START_MACHINE_TIMEOUT,
             wait_time=1
         )
         

@@ -6,6 +6,7 @@ from .machines import MachineWrapper, MachineSet
 from . import dictobj
 from .users import User
 from .request import request_machine, MachineRequest
+from .common import START_MACHINE_TIMEOUT
 
 
 def remote_provider(url=None, hostname=None, port=None):
@@ -96,7 +97,7 @@ class RemoteMachine(object):
 
 
 class RemoteApi(object):
-    _action_timeout = 60
+    _action_timeout = START_MACHINE_TIMEOUT
     _info_timeout = 10
     
     def __init__(self, base_url):
