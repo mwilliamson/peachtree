@@ -97,7 +97,7 @@ class RemoteMachine(object):
 
 
 class RemoteApi(object):
-    _action_timeout = START_MACHINE_TIMEOUT
+    _action_timeout = START_MACHINE_TIMEOUT + 30
     _info_timeout = 10
     
     def __init__(self, base_url):
