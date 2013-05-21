@@ -46,7 +46,8 @@ properties:
 * `disks`: an array of paths to the disk images that should be used,
   relative to the image directory.
 
-* `memory` (optional): the amount of memory to allocate to the virtual machine.
+* `memory` (optional): the amount of memory to allocate to the virtual machine,
+  in megabytes.
   Defaults to 512MB.
 
 * `users` (optional):
