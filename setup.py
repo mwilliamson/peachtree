@@ -21,5 +21,6 @@ setup(
         "requests>=1.0,<2",
         "pyramid>=1.4b3,<1.5",
         "psutil>=0.6.1,<0.7",
+        "marmoset>=0.1,<0.2",
     ],
 )

@@ -1,7 +1,7 @@
 import json
 import sys
 
-from peachtree import human
+import marmoset
 
 
 def find_writer_by_name(name, output_file=None):
@@ -29,7 +29,8 @@ class HumanWriter(object):
         self._output_file = output_file
     
     def write_result(self, value):
-        self._output_file.write(human.dumps(value))
+        self._output_file.write(marmoset.dumps(value))
+        self._output_file.write("\n")
 
 
 _writers = {
