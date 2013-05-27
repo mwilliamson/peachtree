@@ -12,6 +12,7 @@ test = suite_builder.add_test
 
 
 _IMAGE_NAME="ubuntu-precise-amd64"
+_WINDOWS_IMAGE_NAME="windows-server-2012-x86-64"
 
 
 @test
@@ -157,6 +158,11 @@ def can_start_multiple_machines(provider):
         _assert_can_run_commands_on_machine(machines[1])
         _assert_can_run_commands_on_machine(machines["first"])
         _assert_can_run_commands_on_machine(machines["second"])
+
+
+@test
+def list_of_images_is_list_of_image_names(provider):
+    assert_equals([_IMAGE_NAME, _WINDOWS_IMAGE_NAME], provider.list_images())
 
 
 def _assert_can_run_commands_on_machine(machine):

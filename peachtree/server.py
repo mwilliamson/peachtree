@@ -100,6 +100,10 @@ def start_server(port, provider):
             machine.destroy()
         return success({"status": "OK"})
     
+    @http_get
+    def list_images(post):
+        return success(provider.list_images())
+    
     def _describe_machine(machine):
         return machine_description.describe_machine(machine)
     
@@ -107,6 +111,8 @@ def start_server(port, provider):
     
     config.add_route('machines', '/machines')
     config.add_view(machines, route_name='machines')
+    config.add_route("list-images", "/images")
+    config.add_view(list_images, route_name="list-images")
     
     def add_machine_route(path, view):
         name = path.replace("-", "_")

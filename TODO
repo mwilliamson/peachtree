@@ -1,5 +1,4 @@
 * Store process-set directories in data dir
-* Allow all available images to be listed
 * Rename images to templates?
 * Add commands to CLI to simplify creating images
   * Separate script?

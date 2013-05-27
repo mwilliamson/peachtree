@@ -49,6 +49,9 @@ class RemoteProvider(object):
         machines = self._api.running_machines()
         return [_create_machine(machine, self._api) for machine in machines]
     
+    def list_images(self):
+        return self._api.list_images()
+    
     def __enter__(self):
         return self
         
@@ -130,6 +133,9 @@ class RemoteApi(object):
         
     def destroy(self, identifier):
         self._action(self._machine_path(identifier, "destroy"))
+
+    def list_images(self):
+        return self._info("images")
 
     def _action(self, *args, **kwargs):
         return self._request(

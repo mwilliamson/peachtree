@@ -78,6 +78,10 @@ class CliApi(object):
     def destroy(self, identifier):
         self._run(["stop", identifier])
     
+    def list_images(self):
+        result = self._run(["list-images"])
+        return json.loads(result.output)
+    
     def _generate_public_port_args(self, request):
         return [
             "--public-port={0}".format(port)

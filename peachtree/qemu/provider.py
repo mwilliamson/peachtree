@@ -186,7 +186,10 @@ class Provider(object):
         statuses = self._statuses.read_all()
         machines = map(self._machine_from_status, statuses)
         return [machine for machine in machines if machine is not None]
-                
+    
+    def list_images(self):
+        return [image.name for image in self._images.all()]
+    
     def cron(self):
         self._stop_machines_past_timeout()
         self._clean_statuses()
@@ -227,10 +230,17 @@ class QemuInvoker(object):
 
 class Images(object):
     def __init__(self, data_dir=None):
-        self._data_dir = data_dir or _default_data_dir()
+        data_dir = data_dir or _default_data_dir()
+        self._images_dir = os.path.join(data_dir, "images")
+    
+    def all(self):
+        return sorted(
+            map(self.image, os.listdir(self._images_dir)),
+            key=lambda image: image.name
+        )
     
     def image_path(self, image_name):
-        return os.path.join(self._data_dir, "images", image_name)
+        return os.path.join(self._images_dir, image_name)
     
     def image(self, image_name):
         image_dir = self.image_path(image_name)
@@ -260,6 +270,7 @@ class Images(object):
         ssh_internal_port = description.get("sshPort", 22)
             
         return Image(
+            name=image_name,
             disks=disks,
             memory_size=memory_size,
             users=users,
@@ -269,6 +280,7 @@ class Images(object):
 
 
 Image = dictobj.data_class("Image", [
+    "name",
     "disks",
     "memory_size",
     "users",

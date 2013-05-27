@@ -126,7 +126,15 @@ class PublicPortCommand(object):
         else:
             external_port = machine.public_port(args.port)
         writer.write_result(external_port)
-        
+
+
+class ListImagesCommand(object):
+    def create_parser(self, subparser):
+        pass
+    
+    def execute(self, provider, writer, args):
+        writer.write_result(provider.list_images())
+
 
 _commands = {
     "run": RunCommand,
@@ -137,6 +145,7 @@ _commands = {
     "stop": StopCommand,
     "cron": CronCommand,
     "public-port": PublicPortCommand,
+    "list-images": ListImagesCommand,
 }
 
 
