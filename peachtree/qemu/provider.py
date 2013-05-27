@@ -119,7 +119,7 @@ class Provider(object):
         image = self._images.image(request.image_name)
         identifier = str(uuid.uuid4())
         
-        process_set = processes.start({})
+        process_set = processes.start({}, self._statuses.process_storage_dir(identifier))
         self._invoker.start_process(image, network, process_set)
         
         status = MachineStatus(

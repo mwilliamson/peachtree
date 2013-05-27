@@ -21,6 +21,9 @@ class Statuses(object):
         status_json = dictobj.obj_to_dict(status)
         self._write_json(status.identifier, status_json)
     
+    def process_storage_dir(self, identifier):
+        return os.path.join(self._status_dir_for_identifier(identifier), "processes")
+    
     def read(self, identifier):
         try:
             status_dict = self._read_json(identifier)
@@ -47,6 +50,9 @@ class Statuses(object):
         return filter(lambda status: status is not None, statuses)
     
     def _status_path(self, identifier):
+        return os.path.join(self._status_dir_for_identifier(identifier), "status.json")
+        
+    def _status_dir_for_identifier(self, identifier):
         return os.path.join(self._status_dir, identifier)
 
     def _read_json(self, identifier):

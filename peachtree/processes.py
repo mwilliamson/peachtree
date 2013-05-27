@@ -1,5 +1,4 @@
 import os
-import tempfile
 import errno
 import json
 
@@ -12,8 +11,10 @@ from . import dictobj
 local_shell = spur.LocalShell()
 
 
-def start(commands):
-    run_dir = RunDirectory(tempfile.mkdtemp(prefix="process-set-"))
+def start(commands, storage_dir):
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    run_dir = RunDirectory(storage_dir)
     process_set = ProcessSet(run_dir, {})
     process_set.start(commands)
     return process_set
