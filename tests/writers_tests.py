@@ -30,7 +30,7 @@ def human_writer_converts_values_to_output_for_humans():
     expected_output = (
         '- one\n'
         '- 2\n'
-        '- false'
+        '- false\n'
     )
     assert_equal(expected_output, output.getvalue())
     
