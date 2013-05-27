@@ -1,6 +1,5 @@
 import threading
 import json
-import functools
 import SocketServer
 from wsgiref.simple_server import make_server, WSGIServer
 

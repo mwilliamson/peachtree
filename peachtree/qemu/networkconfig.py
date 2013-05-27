@@ -1,5 +1,3 @@
-import re
-
 from .. import wait
 from ..windows import netsh
 
