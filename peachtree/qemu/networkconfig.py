@@ -2,12 +2,28 @@ from .. import wait
 from ..windows import netsh
 
 
-def network_config(operating_system_family):
+def network_config(operating_system_family, shell):
     configs = {
         "linux": LinuxNetworkConfig(),
         "windows": WindowsNetworkConfig()
     }
-    return configs[operating_system_family]
+    return NetworkConfigurer(configs[operating_system_family], shell)
+
+
+class NetworkConfigurer(object):
+    def __init__(self, config, shell):
+        self._config = config
+        self._shell = shell
+        
+    def add_hosts_entry(self, ip_address, hostname):
+        # TODO: properly escape hosts_path
+        sh_command = "echo {0} {1} >> '{2}'".format(
+            ip_address, hostname, self._config.hosts_path
+        )
+        self._shell.run(["sh", "-c", sh_command])
+
+    def configure_internal_interface(self, ip_address, netmask):
+        return self._config.configure_internal_interface(self._shell, ip_address, netmask)
 
 
 class LinuxNetworkConfig(object):

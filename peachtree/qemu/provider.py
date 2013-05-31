@@ -62,10 +62,9 @@ class Provider(object):
         network = self._networking.settings_for(image, request)
         machine = self._start_with_network_settings(request, network)
         
-        config = self._guest_network_config_for(machine)
-        machine.root_shell().run(self._append_host_command(
-            "127.0.0.1", machine.name, config
-        ))
+        with machine.root_shell() as root_shell:
+            config = self._guest_network_config_for(machine, root_shell)
+            config.add_hosts_entry("127.0.0.1", machine.name)
         
         return machine
             
@@ -87,33 +86,22 @@ class Provider(object):
             eth1_address = "192.168.0.{0}".format(1 + index)
             netmask = "255.255.255.0"
             with machine.root_shell() as root_shell:
-                config = self._guest_network_config_for(machine)
-                config.configure_internal_interface(
-                    root_shell, eth1_address, netmask
-                )
+                config = self._guest_network_config_for(machine, root_shell)
+                config.configure_internal_interface(eth1_address, netmask)
                 addresses.append((request.name, eth1_address))
         
         for machine in machines:
-            config = self._guest_network_config_for(machine)
             with machine.root_shell() as root_shell:
+                config = self._guest_network_config_for(machine, root_shell)
                 for hostname, address in addresses:
-                    root_shell.run(self._append_host_command(
-                        address, hostname, config
-                    ))
+                    config.add_hosts_entry(address, hostname)
         
         return MachineSet(machines)
     
-    def _guest_network_config_for(self, machine):
+    def _guest_network_config_for(self, machine, shell):
         image = self._images.image(machine.image_name)
         os_family = image.operating_system_family
-        return networkconfig.network_config(os_family)
-    
-    def _append_host_command(self, address, hostname, network_config):
-         # TODO: properly escape hosts_path
-        sh_command = "echo {0} {1} >> '{2}'".format(
-            address, hostname, network_config.hosts_path
-        )
-        return ["sh", "-c", sh_command]
+        return networkconfig.network_config(os_family, shell)
 
     def _start_with_network_settings(self, request, network):
         image = self._images.image(request.image_name)
